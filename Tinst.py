@@ -13,15 +13,16 @@ import scipy as sp #calculs
 from scipy import misc
 import emcee
 import corner
+import multiprocessing
+import sys
+from schwimmbad import MPIPool
 
 from spectractor.extractor.spectrum import Spectrum #importation des spectres
-#from spectractor.tools import from_lambda_to_colormap #couleurs des longueurs d'ondes
 from spectractor.tools import wavelength_to_rgb #couleurs des longueurs d'ondes
 from spectractor.simulation.simulator import AtmosphereGrid # grille d'atmosphère
 import spectractor.parameters as parameterss
 from spectractor.simulation.adr import adr_calib
-from spectractor.extractor.psf import load_PSF
-from spectractor.extractor.chromaticpsf import ChromaticPSF
+
 
 
 class SpectrumAirmassFixed:
@@ -236,21 +237,137 @@ class SpectrumRangeAirmass:
         return slope, ord, err_slope, err_ord
 
     def bouguer_line_order2(self):
-        atm = []
+        def forder2(x, a, b, A2=1):
+            return np.log(np.exp(a * x + b) + A2 * order2)
+
+        slope, ord, err_slope, err_ord = self.bouguer_line()
+        A2 = np.zeros(len(self.data_mag))
+        A2_err = np.zeros(len(self.data_mag))
+        """
+        Lambdas_order2 = self.new_lambda[j:] / 2
+        lambdas_order2 = self.new_lambda[j:]
+        sim_conv = interp1d(self.new_lambda, np.exp(self.data_mag) * self.new_lambda, kind="linear", bounds_error=False, fill_value=(0, 0))
+        err_conv = interp1d(self.new_lambda, np.exp(self.err_mag) * self.new_lambda, kind="linear", bounds_error=False, fill_value=(0, 0))
+        spectrum_order2 = sim_conv(Lambdas_order2) / lambdas_order2
+        err_order2 = err_conv(Lambdas_order2) / lambdas_order2
+        """
+
         for i in range(len(self.data_mag)):
-            for j in range(len(self.names)):
-                prod_name = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME)
-                atmgrid = AtmosphereGrid(
-                    filename=(prod_name + '/' + self.names[j].split('/')[-1]).replace('sim','reduc').replace('spectrum.txt', 'atmsim.fits'))
-                atm.append(atmgrid)
+
+            order2 = self.order2[i]
+            print(order2)
+            Emcee = True
+            if Emcee:
+                def log_likelihood(theta, x, y, yerr):
+                    a, b = theta
+                    model = forder2(x, a, b)
+                    sigma2 = yerr * yerr
+
+                    return -0.5 * np.sum((y - model) ** 2 / sigma2)
+
+                def log_prior(theta):
+                    a, b = theta
+                    if slope[i] < a < 0 and ord[i] - 2 < b < ord[i]:
+                        return 0
+                    return -np.inf
+
+                def log_probability(theta, x, y, yerr=1):
+                    lp = log_prior(theta)
+                    if not np.isfinite(lp):
+                        return -np.inf
+                    return lp + log_likelihood(theta, x, y, yerr)
+
+                p0 = np.array([slope[i], ord[i]])
+                print(p0)
+                walker = 10
+                init_a = p0[0] - p0[0] / 100 * 5 * abs(np.random.randn(walker))
+                init_b = p0[1] + p0[1] / 100 * 5 * abs(np.random.randn(walker))
+                # init_A2 = p0[2] + p0[2] / 100 * 50 * np.random.randn(walker)
+
+                pos = np.array([[init_a[i], init_b[i]] for i in range(len(init_a))])
+                # pos = p0 + np.array([init_a,init_b, init_A2])
+                # pos = p0 + p0 / 100 * 5 * (2 * np.random.randn(20, 3) - 1)
+                print(pos)
+                nwalkers, ndim = pos.shape
+
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
+                                                args=(self.range_airmass[i], self.data_mag[i], self.err_mag[i]))
+                sampler.run_mcmc(pos, 1000, progress=True)
+                """
+                fig, axes = plt.subplots(3, figsize=(10, 7), sharex=True)
+                samples = sampler.get_chain()
+                labels = ["a", "b"]
+                for i in range(ndim):
+                    ax = axes[i]
+                    ax.plot(samples[:, :, i], "k", alpha=0.3)
+                    ax.set_xlim(0, len(samples))
+                    ax.set_ylabel(labels[i])
+                    ax.yaxis.set_label_coords(-0.1, 0.5)
+                axes[-1].set_xlabel("step number")
+                """
+                flat_samples = sampler.get_chain(discard=200, thin=1, flat=True)
+                """
+                fig = corner.corner(
+                    flat_samples, labels=labels, truths=p0, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 12}
+                )
+                plt.show()
+                """
+                mcmc = np.percentile(flat_samples[:, 0], [16, 50, 84])
+                mcmc2 = np.percentile(flat_samples[:, 1], [16, 50, 84])
+                # mcmc3 = np.percentile(flat_samples[:, 2], [16, 50, 84])
+                # q3 = np.diff(mcmc3)
+                q1 = np.diff(mcmc)
+
+                A2[i] = 1
+                A2_err[i] = 0
+                # (abs(q3[0])+abs(q3[1]))/2
+                slope[i] = mcmc[1]
+                ord[i] = mcmc2[1]
+                err_slope[i] = (abs(q1[0]) + abs(q1[1])) / 2
+                print(slope[i])
+            else:
+                try:
+                    popt, pcov = sp.optimize.curve_fit(forder2, self.range_airmass[i], self.data_mag[i],
+                                                       p0=[slope[i], ord[i]], sigma=self.err_mag[i],
+                                                       bounds=([slope[i], ord[i] - 2], [0, ord[i]]), verbose=2)
+                    print(slope[i], ord[i], popt[0], popt[1])
+                    slope[i], ord[i] = popt[0], popt[1]
+                    err_ord[i] = min(np.sqrt(pcov[1][1]), err_ord[i])
+                    err_slope[i] = min(np.sqrt(pcov[0][0]), err_slope[i])
+                    A2_err[i] = 0
+                    A2[i] = 1
+                except RuntimeError:
+                    slope[i], ord[i], A2[i] = slope[i], ord[i], 1
+                    err_ord[i] = 0
+                    err_slope[i] = 0
+                    A2_err[i] = 0
+
+        """
+        fig = plt.figure(figsize=[15, 10])
+        X=np.arange(1,len(self.Bin),1)
+        print(A2)
+        plt.plot(X, A2, color='blue', label='transmission libradtran typique')
+        plt.show()
+        """
+        return slope, ord, err_slope, err_ord, A2, A2_err
+
+    def megafit_emcee(self):
+        nsamples = 2000
+
+        atm = []
+        for j in range(len(self.names)):
+            prod_name = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME)
+            atmgrid = AtmosphereGrid(
+                filename=(prod_name + '/' + self.names[j].split('/')[-1]).replace('sim','reduc').replace('spectrum.txt', 'atmsim.fits'))
+            atm.append(atmgrid)
 
         slope, ord, err_slope, err_ord = self.bouguer_line()
 
         def f_tinst_atm(Tinst, ozone, eau, aerosols, atm):
             model = np.zeros((len(self.data_mag),len(self.names)))
-            for i in range(len(self.data_mag)):
-                for j in range(len(self.names)):
-                    model[i][j] = Tinst[i] * atm[j].simulate(ozone, eau, aerosols)(self.new_lambda[i])
+            for j in range(len(self.names)):
+                a = atm[j].simulate(ozone, eau, aerosols)
+                model[:,j] = Tinst * a(self.new_lambda)
             return model
 
         def log_likelihood(params_fit, atm, y, yerr):
@@ -261,15 +378,16 @@ class SpectrumRangeAirmass:
 
         def log_prior(params_fit):
             Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
-            #demander à Jerem
-            test = True
-            for t in Tinst:
-                if t<0 or t>1:
-                    test = False
-                    break
-            if 100 < ozone < 700 and 0 < eau < 10 and 0 < aerosols < 0.1 and test:
+
+            """
+            if np.any(Tinst < 0) or np.any(Tinst > 1):
+                return -np.inf
+            """
+
+            if 100 < ozone < 700 and 0 < eau < 10 and 0 < aerosols < 0.1:
                 return 0
-            return -np.inf
+            else:
+                return -np.inf
 
         def log_probability(params_fit, atm, y, yerr):
             lp = log_prior(params_fit)
@@ -301,34 +419,55 @@ class SpectrumRangeAirmass:
             pos.append(T)
         pos = np.array(pos)
         nwalkers, ndim = pos.shape
+
+        plt.errorbar(self.new_lambda, (np.exp(self.data_mag) - self.order2)[:,10], yerr=(self.err_mag * np.exp(self.data_mag))[:,10])
+        plt.show()
+
+        filename = ""
+        backend = emcee.backends.HDFBackend(filename)
+        """
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
-                                        args=(atm, (np.exp(self.data_mag) + self.order2), self.err_mag * np.exp(self.data_mag)))
-        sampler.run_mcmc(pos, 10000, progress=True)
+                                        args=(atm, (np.exp(self.data_mag) - self.order2), self.err_mag * np.exp(self.data_mag)), threads=multiprocessing.cpu_count())
+        sampler.run_mcmc(pos, 2000, progress=True)
+        """
+        try:
+            pool = MPIPool()
+            if not pool.is_master():
+                pool.wait()
+                sys.exit(0)
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
+                                        args=(atm, (np.exp(self.data_mag) - self.order2), self.err_mag * np.exp(self.data_mag)), pool=pool, backend=backend)
+            if backend.iteration > 0:
+                p0 = backend.get_last_sample()
+            if nsamples - backend.iteration > 0:
+                sampler.run_mcmc(p0, nsteps=max(0, nsamples - backend.iteration), progress=True)
+            pool.close()
+        except ValueError:
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
+                                        args=(atm, (np.exp(self.data_mag) - self.order2), self.err_mag * np.exp(self.data_mag)),
+                                            threads=multiprocessing.cpu_count(), backend=backend)
+            if backend.iteration > 0:
+                p0 = sampler.get_last_sample()
+            for _ in sampler.sample(p0, iterations=max(0, nsamples - backend.iteration), progress=True, store=True):
+                continue
+        """
+        fit_workspace.chains = sampler.chain
+        fit_workspace.lnprobs = sampler.lnprobability
+
+        flat_samples = sampler.get_chain(discard=0, thin=1, flat=True)
         """
 
-        samples = sampler.get_chain(discard=9000, thin=1, flat=True)
-        #labels = ["a", "b"]
-        for i in range(ndim):
-            fig, axes = plt.subplots(1, figsize=(10, 7), sharex=True)
-            axes.plot(samples[:, ndim], "k", alpha=0.3)
-            #ax.set_xlim(0, len(samples))
-            #ax.set_ylabel(labels[i])
-            #ax.yaxis.set_label_coords(-0.1, 0.5)
+        Tinst = np.mean(flat_samples, axis=0)[:-3]
+        Tinst_err = np.std(flat_samples, axis=0)[:-3]
+
+        for i in range(5):
+            plt.hist(flat_samples[:,i],bins=100)
             plt.show()
-
-        """
-        flat_samples = sampler.get_chain(discard=9000, thin=1, flat=True)
-
-        Tinst = []
-        for i in range(len(init_Tinst[0])):
-            Tinst.append(np.percentile(flat_samples[:, i], [50])[0])
-
-        Tinst = np.array(Tinst)
         #Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
-        print(np.percentile(flat_samples[:, -3], [50])[0])
-        print(np.percentile(flat_samples[:, -2], [50])[0])
-        print(np.percentile(flat_samples[:, -1], [50])[0])
-        return Tinst
+        print(np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3]))
+        print(np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2]))
+        print(np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1]))
+        return Tinst, Tinst_err
 
     def check_outliers(self):
         indice =[]
@@ -364,10 +503,11 @@ class SpectrumRangeAirmass:
 
 class TransmissionInstrumentale:
 
-    def __init__(self, prod_name="", sim="", disperseur="", target="", order2="", plot_filt="", save_filter="",prod=""):
+    def __init__(self, prod_name="", sim="", disperseur="", target="", order2="", mega_fit="", plot_filt="", save_filter="",prod=""):
         self.target = target
         self.disperseur = disperseur
         self.order2 = order2
+        self.mega_fit = mega_fit
         self.A2 = []
         self.A2_err = []
         self.t_disp_order2 = []
@@ -436,9 +576,10 @@ class TransmissionInstrumentale:
         self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel,np.zeros(len(fluxlum_Binreel)))
 
     def calcul_throughput(self, spectrumrangeairmass):
-        print(len(self.data_calspec_mag),len(self.data_calspec_mag[0]), len(spectrumrangeairmass.data_mag),len(spectrumrangeairmass.data_mag[0]))
         data_mag = spectrumrangeairmass.data_mag.T
         data_mag -= self.data_calspec_mag[0]
+        spectrumrangeairmass.data_mag = data_mag.T
+
         self.slope, self.ord, self.err_slope, self.err_ord = spectrumrangeairmass.bouguer_line()
         disp = np.loadtxt(self.rep_disp_name)
         Data_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1], kind="linear", bounds_error=False,
@@ -481,13 +622,32 @@ class TransmissionInstrumentale:
         #self.data = sp.signal.savgol_filter(self.data, 111, 2)
 
         if self.order2:
-            self.ord2 = spectrumrangeairmass.bouguer_line_order2()
+            self.slope2, self.ord2, self.err_slope2, self.err_ord2, self.A2, self.A2_err = spectrumrangeairmass.bouguer_line_order2()
+            self.data_bouguer = np.exp(self.ord2)
+            err_bouguer = self.err_ord2 * self.data_bouguer
+            self.data_order2 = self.data_bouguer
+            self.lambdas = self.new_lambda
+            self.err_order2 = err_bouguer
+            # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
+            Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
+                                           fill_value="extrapolate")
+            Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.data_bouguer, kind="linear", bounds_error=False,
+                                                   fill_value="extrapolate")
+            Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
+                                          fill_value="extrapolate")
+            self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
+            self.data_order2 = Data(self.lambdas)
+            self.err_order2 = Err(self.lambdas)
+            self.data_bouguer = Data_bouguer(self.lambdas)
+            # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
+
+        if self.mega_fit:
+            self.ord2, self.err_ord2 = spectrumrangeairmass.megafit_emcee()
             print(self.ord2)
             print(len(self.ord2))
             self.data_order2 = self.ord2
             self.lambdas = self.new_lambda
-            self.err_order2 = err_bouguer
-            #self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
+            # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
             """
@@ -500,16 +660,16 @@ class TransmissionInstrumentale:
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
-            #self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
-
-
+            # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
 
 
 
 def convert_from_flam_to_mag(data,err):
+
     for i in range(len(data)):
         if data[i]<1e-15:
             data[i] = 1e-15
+
     return np.log(data), err/data
 
 def filter_spec(lambdas, data):
@@ -1233,12 +1393,12 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
         print('already done')
         return True,Lsimutxt,Lreductxt
 
-def extract_throughput(prod_name, sim, disperseur, prod_sim, prod_reduc, target="HD111980", order2=False,
+def extract_throughput(prod_name, sim, disperseur, prod_sim, prod_reduc, target="HD111980", order2=False, mega_fit=False,
                        plot_atmo=False, plot_bouguer=False, plot_specs=False, plot_target=False, plot_filt=False, plot_Throughput=True,
                        save_atmo=False, save_bouguer=False, save_target=False, save_Throughput=False, save_filter=False):
 
     spectrumrangeairmass = SpectrumRangeAirmass(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target, plot_specs=plot_specs, prod_sim = prod_sim, prod_reduc = prod_reduc)
-    Throughput = TransmissionInstrumentale(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target, order2=order2, plot_filt=plot_filt, save_filter=save_filter, prod=prod_sim)
+    Throughput = TransmissionInstrumentale(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target, order2=order2, mega_fit=mega_fit, plot_filt=plot_filt, save_filter=save_filter, prod=prod_sim)
     Throughput.calcul_throughput(spectrumrangeairmass)
 
     if plot_atmo:
@@ -1271,7 +1431,7 @@ def prod_analyse(prod_name, prod_txt):
 
 prod_txt = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_TXT)
 prod_name = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME)
-extract_throughput(prod_txt, True, 'HoloPhP', glob.glob(prod_txt + "/sim*spectrum.txt"), glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_specs = False, plot_bouguer=False, plot_atmo=False, order2=True, save_Throughput=False)
+extract_throughput(prod_txt, True, 'HoloPhP', glob.glob(prod_txt + "/sim*spectrum.txt"), glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_specs = False, plot_bouguer=False, plot_atmo=False, order2=False, mega_fit=True, save_Throughput=False)
 #prod_analyse(prod_name, prod_txt)
 
 
