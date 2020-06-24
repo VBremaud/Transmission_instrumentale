@@ -1,15 +1,15 @@
 # coding: utf8
 
-import os  # gestion de fichiers
-import matplotlib.pyplot as plt  # affichage
-import numpy as np  # calculs utilisant C
+import os #gestion de fichiers
+import matplotlib.pyplot as plt #affichage
+import numpy as np #calculs utilisant C
 import glob
 from astropy.io import fits
 import parameters
-from scipy import signal  # filtre savgol pour enlever le bruit
-from scipy.interpolate import interp1d  # interpolation
-from scipy import integrate  # integation
-import scipy as sp  # calculs
+from scipy import signal #filtre savgol pour enlever le bruit
+from scipy.interpolate import interp1d #interpolation
+from scipy import integrate #integation
+import scipy as sp #calculs
 from scipy import misc
 import emcee
 import corner
@@ -17,14 +17,16 @@ import multiprocessing
 import sys
 from schwimmbad import MPIPool
 
-from spectractor.extractor.spectrum import Spectrum  # importation des spectres
-from spectractor.tools import wavelength_to_rgb  # couleurs des longueurs d'ondes
-from spectractor.simulation.simulator import AtmosphereGrid  # grille d'atmosphère
+from spectractor.extractor.spectrum import Spectrum #importation des spectres
+from spectractor.tools import wavelength_to_rgb #couleurs des longueurs d'ondes
+from spectractor.simulation.simulator import AtmosphereGrid # grille d'atmosphère
 import spectractor.parameters as parameterss
 from spectractor.simulation.adr import adr_calib
 
 
+
 class SpectrumAirmassFixed:
+
     """
     Examples
     ----------------
@@ -34,6 +36,7 @@ class SpectrumAirmassFixed:
     """
 
     def __init__(self, file_name=""):
+
         self.target = None
         self.disperseur = None
         self.airmass = -1
@@ -58,8 +61,9 @@ class SpectrumAirmassFixed:
             self.load_spec_header(file_name)
             self.load_spec_data()
 
+
     def load_spec_header(self, input_file_name):
-        if os.path.isfile(input_file_name) and input_file_name[-3:] == 'txt':
+        if os.path.isfile(input_file_name) and input_file_name[-3:]=='txt':
 
             spec = open(input_file_name, 'r')
 
@@ -83,49 +87,47 @@ class SpectrumAirmassFixed:
 
         else:
             if input_file_name[-3:] != 'txt':
-                raise FileNotFoundError(
-                    f'\n\tSpectrum file {input_file_name} must be converted to a txt file with conversion_spec.py')
+                raise FileNotFoundError(f'\n\tSpectrum file {input_file_name} must be converted to a txt file with conversion_spec.py')
             else:
                 raise FileNotFoundError(f'\n\tSpectrum file {input_file_name} not found')
 
     def load_spec_data(self):
-        spec = open(self.file_name, 'r')
-        lambdas = []
-        data = []
-        data_err = []
-        lambdas_order2 = []
+            spec = open(self.file_name, 'r')
+            lambdas=[]
+            data=[]
+            data_err=[]
+            lambdas_order2 = []
 
-        for line in spec:
-            Line = line.split()
-            if Line[0] != '#' and len(Line) > 4:
-                lambdas.append(float(Line[2]))
-                data.append(float(Line[3]))
-                data_err.append(float(Line[4]))
-                lambdas_order2.append(float(Line[5]))
+            for line in spec:
+                Line = line.split()
+                if Line[0] != '#' and len(Line)>4:
+                    lambdas.append(float(Line[2]))
+                    data.append(float(Line[3]))
+                    data_err.append(float(Line[4]))
+                    lambdas_order2.append(float(Line[5]))
 
-        self.lambdas = np.array(lambdas)
-        self.data = np.array(data)
-        self.err = np.array(data_err)
-        self.lambdas_order2 = np.array(lambdas_order2)
+            self.lambdas = np.array(lambdas)
+            self.data = np.array(data)
+            self.err = np.array(data_err)
+            self.lambdas_order2 = np.array(lambdas_order2)
 
     def adapt_from_lambdas_to_bin(self):
-        fluxlum_Binobs = np.zeros(len(self.Bin) - 1)
-        fluxlumBin_err = np.zeros(len(self.Bin) - 1)
+        fluxlum_Binobs = np.zeros(len(self.Bin)-1)
+        fluxlumBin_err = np.zeros(len(self.Bin)-1)
         "tableaux de taille len(Bin)-1 et comportant les intensites par bin"
         "tableaux de taille len(Bin)-1 et comportant les erreurs d'intensites par bin"
 
-        interpolation_obs = sp.interpolate.interp1d(self.lambdas, self.data, kind="linear", bounds_error=False,
-                                                    fill_value=(0, 0))
+        interpolation_obs = sp.interpolate.interp1d(self.lambdas,self.data,kind="linear", bounds_error=False, fill_value=(0, 0))
         print(self.tag)
 
-        for v in range(len(self.Bin) - 1):
+        for v in range(len(self.Bin)-1):
             "On rempli les tableaux par bin de longueur d'onde"
-            X = np.linspace(self.Bin[v], self.Bin[v + 1], int(self.binwidths * 100))
+            X = np.linspace(self.Bin[v],self.Bin[v+1], int(self.binwidths * 100))
             Y = interpolation_obs(X)
-            fluxlum_Binobs[v] = integrate.simps(Y, X, dx=1) / self.binwidths
+            fluxlum_Binobs[v] = integrate.simps(Y,X,dx=1)/self.binwidths
 
-            jmin = max(np.argmin(np.abs(self.lambdas - self.Bin[v])), 1)
-            jmax = min(np.argmin(np.abs(self.lambdas - self.Bin[v + 1])), len(self.lambdas) - 1)
+            jmin = max(np.argmin(np.abs(self.lambdas - self.Bin[v])),1)
+            jmax = min(np.argmin(np.abs(self.lambdas - self.Bin[v+1])),len(self.lambdas)-1)
             S = 0
             "Propagation des incertitudes sur les intensites par bin, calcul sur les bords"
             for j in range(jmin, jmax):
@@ -135,10 +137,9 @@ class SpectrumAirmassFixed:
 
         return fluxlum_Binobs, fluxlumBin_err
 
-
 class SpectrumRangeAirmass:
 
-    def __init__(self, prod_name="", sim="", disperseur="", target="", plot_specs="", prod_sim="", prod_reduc=""):
+    def __init__(self, prod_name="", sim="", disperseur="", target="", plot_specs="", prod_sim ="", prod_reduc=""):
 
         self.target = target
         self.disperseur = disperseur
@@ -149,14 +150,14 @@ class SpectrumRangeAirmass:
         self.new_lambda = parameters.NEW_LAMBDA
         self.Bin = parameters.BIN
         self.sim = sim
-        self.list_spectrum = []
+        self.list_spectrum=[]
         self.data_mag = []
         self.range_airmass = []
         self.err_mag = []
         self.order2 = []
         self.names = []
         # ATTENTION à modifier #
-        self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2_bis.txt')  # self.disperseur +
+        self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2_bis.txt') #self.disperseur +
         self.prod_sim = prod_sim
         self.prod_reduc = prod_reduc
         if prod_name != "":
@@ -185,14 +186,14 @@ class SpectrumRangeAirmass:
         T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
                                                fill_value="extrapolate")
         for i in range(len(self.list_spectrum)):
-            s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
+            s=SpectrumAirmassFixed(file_name = self.list_spectrum[i])
 
             if s.target == self.target and s.disperseur == self.disperseur:
                 s.load_spec_data()
                 data_bin, err_bin = s.adapt_from_lambdas_to_bin()
 
                 data, err = convert_from_flam_to_mag(data_bin, err_bin)
-                for v in range(len(self.Bin) - 1):
+                for v in range(len(self.Bin)-1):
                     self.data_mag[v].append(data[v])
                     self.range_airmass[v].append(s.airmass)
                     self.err_mag[v].append(err[v])
@@ -200,12 +201,13 @@ class SpectrumRangeAirmass:
                     data_conv = interp1d(self.new_lambda, data_bin, kind="linear",
                                          bounds_error=False, fill_value=(0, 0))
                     lambdas_conv = interp1d(s.lambdas, s.lambdas_order2, kind="linear",
-                                            bounds_error=False, fill_value=(0, 0))
+                                         bounds_error=False, fill_value=(0, 0))
                     LAMBDAS_ORDER2 = lambdas_conv(self.new_lambda)
                     I_order2 = data_conv(LAMBDAS_ORDER2) * T_disperseur(LAMBDAS_ORDER2)
 
                     self.order2[v].append(I_order2[v] * LAMBDAS_ORDER2[v] * np.gradient(LAMBDAS_ORDER2)[v]
                                           / np.gradient(self.new_lambda)[v] / self.new_lambda[v])
+
 
                 self.names.append(self.list_spectrum[i])
                 if self.plot_specs:
@@ -218,17 +220,16 @@ class SpectrumRangeAirmass:
         self.order2 = np.array(self.order2)
 
     def bouguer_line(self):
-        def flin(x, a, b):
+        def flin(x,a,b):
             return a * x + b
 
         slope = np.zeros(len(self.data_mag))  # on initialise la liste des coefficients à la liste vide.
         ord = np.zeros(len(self.data_mag))
-        err_slope = np.zeros(
-            len(self.data_mag))  # on initialise la liste des erreurs sur les ordonnees à l'origine à la liste vide.
+        err_slope = np.zeros(len(self.data_mag))  # on initialise la liste des erreurs sur les ordonnees à l'origine à la liste vide.
         err_ord = np.zeros(len(self.data_mag))
 
         for i in range(len(self.data_mag)):
-            popt, pcov = sp.optimize.curve_fit(flin, self.range_airmass[i], self.data_mag[i], sigma=self.err_mag[i])
+            popt, pcov = sp.optimize.curve_fit(flin, self.range_airmass[i], self.data_mag[i],sigma=self.err_mag[i])
             slope[i], ord[i] = popt[0], popt[1]
             err_ord[i] = np.sqrt(pcov[1][1])
             err_slope[i] = np.sqrt(pcov[0][0])
@@ -254,7 +255,7 @@ class SpectrumRangeAirmass:
         for i in range(len(self.data_mag)):
 
             order2 = self.order2[i]
-            # print(order2)
+            #print(order2)
             Emcee = True
             if Emcee:
                 def log_likelihood(theta, x, y, yerr):
@@ -277,7 +278,7 @@ class SpectrumRangeAirmass:
                     return lp + log_likelihood(theta, x, y, yerr)
 
                 p0 = np.array([slope[i], ord[i]])
-                # print(p0)
+                #print(p0)
                 walker = 10
                 init_a = p0[0] - p0[0] / 100 * 5 * abs(np.random.randn(walker))
                 init_b = p0[1] + p0[1] / 100 * 5 * abs(np.random.randn(walker))
@@ -286,7 +287,7 @@ class SpectrumRangeAirmass:
                 pos = np.array([[init_a[i], init_b[i]] for i in range(len(init_a))])
                 # pos = p0 + np.array([init_a,init_b, init_A2])
                 # pos = p0 + p0 / 100 * 5 * (2 * np.random.randn(20, 3) - 1)
-                # print(pos)
+                #print(pos)
                 nwalkers, ndim = pos.shape
 
                 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
@@ -323,7 +324,7 @@ class SpectrumRangeAirmass:
                 slope[i] = mcmc[1]
                 ord[i] = mcmc2[1]
                 err_slope[i] = (abs(q1[0]) + abs(q1[1])) / 2
-                # print(slope[i])
+                #print(slope[i])
             else:
                 try:
                     popt, pcov = sp.optimize.curve_fit(forder2, self.range_airmass[i], self.data_mag[i],
@@ -357,15 +358,14 @@ class SpectrumRangeAirmass:
         for j in range(len(self.names)):
             prod_name = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME)
             atmgrid = AtmosphereGrid(
-                filename=(prod_name + '/' + self.names[j].split('/')[-1]).replace('sim', 'reduc').replace(
-                    'spectrum.txt', 'atmsim.fits'))
+                filename=(prod_name + '/' + self.names[j].split('/')[-1]).replace('sim','reduc').replace('spectrum.txt', 'atmsim.fits'))
             atm.append(atmgrid)
 
         def f_tinst_atm(Tinst, ozone, eau, aerosols, atm):
-            model = np.zeros((len(self.data_mag), len(self.names)))
+            model = np.zeros((len(self.data_mag),len(self.names)))
             for j in range(len(self.names)):
                 a = atm[j].simulate(ozone, eau, aerosols)
-                model[:, j] = Tinst * a(self.new_lambda)
+                model[:,j] = Tinst * a(self.new_lambda)
             return model
 
         def log_likelihood(params_fit, atm, y, yerr):
@@ -424,7 +424,7 @@ class SpectrumRangeAirmass:
         plt.show()
         """
 
-        filename = "sps/" + self.disperseur + "_emcee.h5"
+        filename = "sps/"+ self.disperseur +"_emcee.h5"
         backend = emcee.backends.HDFBackend(filename)
         """
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
@@ -437,8 +437,7 @@ class SpectrumRangeAirmass:
                 pool.wait()
                 sys.exit(0)
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
-                                            args=(atm, (np.exp(self.data_mag) - self.order2),
-                                                  self.err_mag * np.exp(self.data_mag)), pool=pool, backend=backend)
+                                        args=(atm, (np.exp(self.data_mag) - self.order2), self.err_mag * np.exp(self.data_mag)), pool=pool, backend=backend)
             if backend.iteration > 0:
                 p0 = backend.get_last_sample()
 
@@ -447,8 +446,7 @@ class SpectrumRangeAirmass:
             pool.close()
         except ValueError:
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
-                                            args=(atm, (np.exp(self.data_mag) - self.order2),
-                                                  self.err_mag * np.exp(self.data_mag)),
+                                        args=(atm, (np.exp(self.data_mag) - self.order2), self.err_mag * np.exp(self.data_mag)),
                                             threads=multiprocessing.cpu_count(), backend=backend)
             if backend.iteration > 0:
                 p0 = sampler.get_last_sample()
@@ -465,23 +463,21 @@ class SpectrumRangeAirmass:
             plt.hist(flat_samples[:,i],bins=100)
             plt.show()
         """
-        # Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
+        #Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
         print(np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3]))
         print(np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2]))
         print(np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1]))
         return Tinst, Tinst_err
 
     def check_outliers(self):
-        indice = []
+        indice =[]
         outliers_detected = True
         while outliers_detected == True:
             for bin in range(len(self.Bin) - 1):
                 if np.max(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin]))) > parameters.MAG_MAX:
                     outliers = np.argmax(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin])))
-                    print("----> outliers detected:" + self.names[outliers].split('/')[
-                        -1] + "\t" + ", multiplicative factor compared to avg value: " + str(
-                        np.exp(np.max(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin])))))[:3] +
-                          " for " + str(self.Bin[bin]) + "-" + str(self.Bin[bin + 1]) + " nm \n")
+                    print("----> outliers detected:" + self.names[outliers].split('/')[-1] + "\t" + ", multiplicative factor compared to avg value: "+ str(np.exp(np.max(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin])))))[:3]+
+                          " for "+str(self.Bin[bin])+"-"+str(self.Bin[bin+1])+" nm \n")
                     s = SpectrumAirmassFixed(file_name=self.names[outliers])
                     pl = input("Do you want check this spectra (y/n)? ")
                     if pl == 'y':
@@ -496,19 +492,18 @@ class SpectrumRangeAirmass:
                 outliers_detected = False
             else:
                 outliers_detected = True
-                self.names = np.delete(self.names, indice[0])
-                self.data_mag = np.delete(self.data_mag, indice[0], 1)
-                self.range_airmass = np.delete(self.range_airmass, indice[0], 1)
-                self.err_mag = np.delete(self.err_mag, indice[0], 1)
-                self.order2 = np.delete(self.order2, indice[0], 1)
+                self.names =np.delete(self.names, indice[0])
+                self.data_mag = np.delete(self.data_mag, indice[0],1)
+                self.range_airmass = np.delete(self.range_airmass, indice[0],1)
+                self.err_mag = np.delete(self.err_mag, indice[0],1)
+                self.order2 = np.delete(self.order2, indice[0],1)
 
                 indice = []
 
 
 class TransmissionInstrumentale:
 
-    def __init__(self, prod_name="", sim="", disperseur="", target="", order2="", mega_fit="", plot_filt="",
-                 save_filter="", prod=""):
+    def __init__(self, prod_name="", sim="", disperseur="", target="", order2="", mega_fit="", plot_filt="", save_filter="",prod=""):
         self.target = target
         self.disperseur = disperseur
         self.order2 = order2
@@ -566,12 +561,11 @@ class TransmissionInstrumentale:
 
         self.lambdas_calspec = np.array(lambdas)
         self.data_calspec_org = np.array(data)
-        # self.data_calspec = filter_detect_lines(self.lambdas_calspec, self.data_calspec_org)
-        self.data_calspec = self.data_calspec_org  # ATTENTION
+        #self.data_calspec = filter_detect_lines(self.lambdas_calspec, self.data_calspec_org)
+        self.data_calspec = self.data_calspec_org #ATTENTION
         fluxlum_Binreel = np.zeros(len(self.Bin) - 1)
-        interpolation_reel = sp.interpolate.interp1d(self.lambdas_calspec, self.data_calspec, kind="linear",
-                                                     bounds_error=False,
-                                                     fill_value=(0, 0))
+        interpolation_reel = sp.interpolate.interp1d(self.lambdas_calspec, self.data_calspec, kind="linear", bounds_error=False,
+                                                    fill_value=(0, 0))
         for v in range(len(self.Bin) - 1):
             "On rempli les tableaux par bin de longueur d'onde"
             X = np.linspace(self.Bin[v], self.Bin[v + 1], int(self.binwidths * 100))
@@ -579,7 +573,7 @@ class TransmissionInstrumentale:
             fluxlum_Binreel[v] = integrate.simps(Y, X, dx=1) / self.binwidths
 
         self.data_calspec = fluxlum_Binreel
-        self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel, np.zeros(len(fluxlum_Binreel)))
+        self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel,np.zeros(len(fluxlum_Binreel)))
 
     def calcul_throughput(self, spectrumrangeairmass):
         data_mag = spectrumrangeairmass.data_mag.T
@@ -593,14 +587,14 @@ class TransmissionInstrumentale:
         self.slope, self.ord, self.err_slope, self.err_ord = spectrumrangeairmass.bouguer_line()
         disp = np.loadtxt(self.rep_disp_name)
         Data_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1], kind="linear", bounds_error=False,
-                                            fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         Err_disp = sp.interpolate.interp1d(disp.T[0], disp.T[2], kind="linear", bounds_error=False,
-                                           fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         tel = np.loadtxt(self.rep_tel_name)
         Data_tel = sp.interpolate.interp1d(tel.T[0], tel.T[1], kind="linear", bounds_error=False,
-                                           fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         Err_tel = sp.interpolate.interp1d(tel.T[0], tel.T[2], kind="linear", bounds_error=False,
-                                          fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         """
         data_disp_new_lambda = Data_disp(self.new_lambda)
         err_disp_new_lambda = Err_disp(self.new_lambda)
@@ -612,14 +606,14 @@ class TransmissionInstrumentale:
         self.data = self.data_bouguer
         self.lambdas = self.new_lambda
         self.err = err_bouguer
-        # self.data = filter_detect_lines(self.lambdas, self.data, self.plot_filt, self.save_filter)
+        #self.data = filter_detect_lines(self.lambdas, self.data, self.plot_filt, self.save_filter)
 
         Data = sp.interpolate.interp1d(self.lambdas, self.data, kind="linear", bounds_error=False,
-                                       fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.data_bouguer, kind="linear", bounds_error=False,
-                                               fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         Err = sp.interpolate.interp1d(self.lambdas, self.err, kind="linear", bounds_error=False,
-                                      fill_value="extrapolate")
+                                                    fill_value="extrapolate")
         self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
 
         self.data_tel = Data_tel(self.lambdas)
@@ -629,7 +623,7 @@ class TransmissionInstrumentale:
         self.data = Data(self.lambdas)
         self.err = Err(self.lambdas)
         self.data_bouguer = Data_bouguer(self.lambdas)
-        # self.data = sp.signal.savgol_filter(self.data, 111, 2)
+        #self.data = sp.signal.savgol_filter(self.data, 111, 2)
 
         if self.order2 and not self.mega_fit:
             self.slope2, self.ord2, self.err_slope2, self.err_ord2, self.A2, self.A2_err = spectrumrangeairmass.bouguer_line_order2()
@@ -673,15 +667,17 @@ class TransmissionInstrumentale:
             # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
 
 
-def convert_from_flam_to_mag(data, err):
+
+def convert_from_flam_to_mag(data,err):
+
     for i in range(len(data)):
-        if data[i] < 1e-15:
+        if data[i]<1e-15:
             data[i] = 1e-15
 
-    return np.log(data), err / data
-
+    return np.log(data), err/data
 
 def filter_spec(lambdas, data):
+
     """
     Data = sp.interpolate.interp1d(lambdas, data, kind="linear", bounds_error=False,
                                            fill_value=(0, 0))
@@ -769,13 +765,12 @@ def filter_spec(lambdas, data):
 
     return data_filt
 
-
 def filter_detect_lines(lambdas, data, plot=False, save=False):
+
     intensite_obs = data
     lambda_obs = lambdas
 
-    intensite_obs_savgol = sp.signal.savgol_filter(intensite_obs, parameters.SAVGOL_LENGTH_DL,
-                                                   parameters.SAVGOL_ORDER_DL)  # filtre savgol (enlève le bruit)
+    intensite_obs_savgol = sp.signal.savgol_filter(intensite_obs, parameters.SAVGOL_LENGTH_DL, parameters.SAVGOL_ORDER_DL)  # filtre savgol (enlève le bruit)
     # filtre moy 2
     # entre 2 pts, 1.4 nm
 
@@ -789,8 +784,7 @@ def filter_detect_lines(lambdas, data, plot=False, save=False):
     k = np.argmin(np.array(lambda_obs) - debut_filtre_global)
 
     moy_raies = 1
-    intensite_obs_savgol2 = sp.signal.savgol_filter(intensite_obs[k:], parameters.SAVGOL_LENGTH_GLOB,
-                                                    parameters.SAVGOL_ORDER_GLOB)
+    intensite_obs_savgol2 = sp.signal.savgol_filter(intensite_obs[k:], parameters.SAVGOL_LENGTH_GLOB, parameters.SAVGOL_ORDER_GLOB)
 
     intensite_obs_sagol_3 = sp.interpolate.interp1d(lambda_obs[k:], intensite_obs_savgol2, kind='quadratic',
                                                     bounds_error=False, fill_value="extrapolate")
@@ -836,8 +830,7 @@ def filter_detect_lines(lambdas, data, plot=False, save=False):
         if D_intensite_obss[i] < D_mean[i - moy_raies] - parameters.TRIGGER * D_sigma[i - moy_raies]:
 
             k = i
-            while lambda_complet[k] - lambda_complet[i] < parameters.HALF_LENGTH_MAX and k < len(
-                    lambda_complet) - moy_raies:
+            while lambda_complet[k] - lambda_complet[i] < parameters.HALF_LENGTH_MAX and k < len(lambda_complet) - moy_raies:
                 k += 1
 
             for j in range(i, k):
@@ -902,7 +895,7 @@ def filter_detect_lines(lambdas, data, plot=False, save=False):
         for j in range(len(Raies), len(lambda_complet)):
             Raies.append(False)
 
-    for i in range(parameters.AROUND_LINES, len(Raies) - parameters.AROUND_LINES - 1):
+    for i in range(parameters.AROUND_LINES, len(Raies)-parameters.AROUND_LINES-1):
         if Raies[i] == False:
             stop = 0
             for j in range(i - parameters.AROUND_LINES, i + 1):
@@ -930,30 +923,32 @@ def filter_detect_lines(lambdas, data, plot=False, save=False):
 
     data_filt = INTENSITE_OBSS
 
+    if plot:
+        plot_filter(save)
+
     return data_filt
 
-
-def smooth(x, window_len, window, sigma=1):
-    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-    if window == 'flat':  # moving average
-        w = np.ones(window_len, 'd')
+def smooth(x,window_len,window,sigma=1):
+    s=np.r_[x[window_len-1:0:-1],x,x[-2:-window_len-1:-1]]
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
     elif window == 'gaussian':
-        if sigma == 0:
+        if sigma==0:
             return x
         else:
-            w = signal.gaussian(window_len, sigma)
+            w=signal.gaussian(window_len,sigma)
     else:
-        w = eval('np.' + window + '(window_len)')
-    y = np.convolve(w / w.sum(), s, mode='valid')
-    if window_len % 2 == 0:  # even case
-        y = y[int(window_len / 2):-int(window_len / 2) + 1]
+        w=eval('np.'+window+'(window_len)')
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    if window_len%2==0: # even case
+        y=y[int(window_len/2):-int(window_len/2)+1]
         return y
-    else:  # odd case
-        y = y[int(window_len / 2 - 1) + 1:-int(window_len / 2 - 1) - 1]
+    else:           #odd case
+        y=y[int(window_len/2-1)+1:-int(window_len/2-1)-1]
         return y
-
 
 def plot_atmosphere(Throughput, save_atmo, sim):
+
     fig = plt.figure(figsize=[15, 10])
     ax = fig.add_subplot(111)
 
@@ -963,13 +958,11 @@ def plot_atmosphere(Throughput, save_atmo, sim):
     atmgrid = AtmosphereGrid(filename="tests/data/reduc_20170530_060_atmsim.fits")
     if sim:
         b = atmgrid.simulate(300, 5, 0.03)
-
         def fatmosphere(lambdas, ozone, eau, aerosol):
             return np.exp(np.log(atmgrid.simulate(ozone, eau, aerosol)(lambdas)) / 1.047)
 
-        popt, pcov = sp.optimize.curve_fit(fatmosphere, T.new_lambda, np.exp(T.slope), p0=[300, 5, 0.03],
-                                           sigma=T.err_slope * np.exp(T.slope),
-                                           bounds=([0, 0, 0], [700, 20, 0.5]), verbose=2)
+        popt, pcov = sp.optimize.curve_fit(fatmosphere, T.new_lambda, np.exp(T.slope), p0=[300, 5, 0.03], sigma=T.err_slope * np.exp(T.slope),
+                                           bounds=([0,0,0], [700,20,0.5]), verbose=2)
         print(popt[0], np.sqrt(pcov[0][0]))
         print(popt[1], np.sqrt(pcov[1][1]))
         print(popt[2], np.sqrt(pcov[2][2]))
@@ -979,13 +972,12 @@ def plot_atmosphere(Throughput, save_atmo, sim):
         def fatmosphere(lambdas, ozone, eau, aerosol):
             return np.exp(np.log(atmgrid.simulate(ozone, eau, aerosol)(lambdas)) / 1.047)
 
-        popt, pcov = sp.optimize.curve_fit(fatmosphere, T.new_lambda, np.exp(T.slope), p0=[300, 5, 0.03],
-                                           sigma=T.err_slope * np.exp(T.slope),
-                                           bounds=([0, 0, 0], [700, 20, 0.5]), verbose=2)
+        popt, pcov = sp.optimize.curve_fit(fatmosphere, T.new_lambda, np.exp(T.slope), p0=[300, 5, 0.03], sigma=T.err_slope * np.exp(T.slope),
+                                           bounds=([0,0,0], [700,20,0.5]), verbose=2)
         print(popt[0], np.sqrt(pcov[0][0]))
         print(popt[1], np.sqrt(pcov[1][1]))
         print(popt[2], np.sqrt(pcov[2][2]))
-        c = atmgrid.simulate(*popt)
+        c= atmgrid.simulate(*popt)
 
     plt.plot(Lambda, np.exp(np.log(c(Lambda)) / 1.047), color='black', label='transmission libradtran ajustée')
     plt.plot(T.new_lambda, np.exp(T.slope), color='red', label='transmission atmosphérique droites bouguer')
@@ -994,7 +986,7 @@ def plot_atmosphere(Throughput, save_atmo, sim):
     plt.fill_between(T.new_lambda, np.exp(T.slope) + T.err_slope * np.exp(T.slope),
                      np.exp(T.slope) - T.err_slope * np.exp(T.slope), color='red')
 
-    if T.order2:
+    if T.order2 :
         plt.plot(T.new_lambda, np.exp(T.slope2), color='green', label='transmission atmosphérique correction ordre2')
         plt.errorbar(T.new_lambda, np.exp(T.slope2), xerr=None, yerr=T.err_slope2 * np.exp(T.slope2), fmt='none',
                      capsize=1,
@@ -1003,9 +995,9 @@ def plot_atmosphere(Throughput, save_atmo, sim):
                          np.exp(T.slope2) - T.err_slope2 * np.exp(T.slope2), color='green')
 
     if T.sim:
-        plt.title('Transmission atmosphérique, simulation, ' + T.disperseur + ', ' + parameters.PROD_NAME, fontsize=18)
+        plt.title('Transmission atmosphérique, simulation, ' + T.disperseur +', '+parameters.PROD_NAME, fontsize=18)
     else:
-        plt.title('Transmission atmosphérique, données, ' + T.disperseur + ', ' + parameters.PROD_NAME, fontsize=18)
+        plt.title('Transmission atmosphérique, données, ' + T.disperseur +', '+parameters.PROD_NAME, fontsize=18)
 
     ax.get_xaxis().set_tick_params(labelsize=17)
     ax.get_yaxis().set_tick_params(labelsize=14)
@@ -1017,27 +1009,20 @@ def plot_atmosphere(Throughput, save_atmo, sim):
     if save_atmo:
         if T.sim:
             if os.path.exists(parameters.OUTPUTS_ATM_SIM):
-                plt.savefig(
-                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                plt.savefig(parameters.OUTPUTS_ATM_SIM+'atm_simu, ' + T.disperseur +', '+parameters.PROD.split('_')[-4]+'.png')
             else:
                 os.makedirs(parameters.OUTPUTS_ATM_SIM)
-                plt.savefig(
-                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                plt.savefig(parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', ' +parameters.PROD.split('_')[-4] + '.png')
         else:
             if os.path.exists(parameters.OUTPUTS_ATM_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', ' + parameters.PROD.split('_')[-4] + '.png')
             else:
                 os.makedirs(parameters.OUTPUTS_ATM_REDUC)
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', ' +parameters.PROD.split('_')[-4] + '.png')
 
     plt.show()
-
 
 def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
     fig = plt.figure(figsize=[15, 10])
@@ -1051,7 +1036,7 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
 
     S = spectrumrangeairmass
     T = Throughput
-    Z = np.linspace(0, 2.2, 1000)
+    Z = np.linspace(0,2.2,1000)
 
     for i in range(len(T.new_lambda)):
         MAG = flin(Z, T.slope[i], T.ord[i])
@@ -1065,8 +1050,7 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
             plt.fill_between(Z, MAG_sup, MAG_inf, color=[wavelength_to_rgb(T.new_lambda[i])])
             "la commande ci-dessus grise donne la bonne couleur la zone où se trouve la droite de Bouguer"
 
-            plt.scatter(S.range_airmass[i], S.data_mag[i], c=[wavelength_to_rgb(T.new_lambda[i])],
-                        label=f'{T.Bin[i]}-{T.Bin[i + 1]} nm',
+            plt.scatter(S.range_airmass[i], S.data_mag[i], c=[wavelength_to_rgb(T.new_lambda[i])], label=f'{T.Bin[i]}-{T.Bin[i + 1]} nm',
                         marker='o', s=30)
             plt.errorbar(S.range_airmass[i], S.data_mag[i], xerr=None, yerr=S.err_mag[i], fmt='none', capsize=1,
                          ecolor=(wavelength_to_rgb(T.new_lambda[i])), zorder=2, elinewidth=2)
@@ -1084,10 +1068,9 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
                 plt.plot(Z, MAG, c=wavelength_to_rgb(T.new_lambda[i]), linestyle='--')
         """
     if T.sim:
-        plt.title('Droites de Bouguer, simulation, ' + T.disperseur + ', ' + parameters.PROD.split('_')[-4],
-                  fontsize=18)
+        plt.title('Droites de Bouguer, simulation, ' + T.disperseur+', '+parameters.PROD.split('_')[-4], fontsize=18)
     else:
-        plt.title('Droites de Bouguer, données, ' + T.disperseur + ', ' + parameters.PROD.split('_')[-4], fontsize=18)
+        plt.title('Droites de Bouguer, données, ' + T.disperseur+', '+parameters.PROD.split('_')[-4], fontsize=18)
 
     ax.get_xaxis().set_tick_params(labelsize=17)
     ax.get_yaxis().set_tick_params(labelsize=14)
@@ -1099,43 +1082,36 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
     if save_bouguer:
         if T.sim:
             if os.path.exists(parameters.OUTPUTS_BOUGUER_SIM):
-                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', ' +
-                            parameters.PROD.split('_')[-4] + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM+'bouguer_simu, ' + T.disperseur +', '+parameters.PROD.split('_')[-4]+'.png')
             else:
                 os.makedirs(parameters.OUTPUTS_BOUGUER_SIM)
-                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', ' +
-                            parameters.PROD.split('_')[-4] + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', ' +parameters.PROD.split('_')[-4]+ '.png')
         else:
             if os.path.exists(parameters.OUTPUTS_BOUGUER_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', ' +
-                    parameters.PROD.split('_')[-4] + '.png')
+                    parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', ' +parameters.PROD.split('_')[-4]+ '.png')
             else:
                 os.makedirs(parameters.OUTPUTS_BOUGUER_REDUC)
-                plt.savefig(parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', ' +
-                            parameters.PROD.split('_')[-4] + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', ' +parameters.PROD.split('_')[-4]+ '.png')
     plt.show()
-
 
 def plot_spectrums(s):
     plt.figure(figsize=[10, 10])
     plt.plot(s.lambdas, s.data, c='black')
     plt.errorbar(s.lambdas, s.data, xerr=None, yerr=s.err, fmt='none', capsize=1, ecolor='black', zorder=2,
-                 elinewidth=2)
-    plt.xlabel('$\lambda$ (nm)', fontsize=13)
+                   elinewidth=2)
+    plt.xlabel('$\lambda$ (nm)',fontsize=13)
     plt.ylabel('erg/s/cm2/Hz', fontsize=13)
-    plt.title('spectra: ' + s.tag[:-13] + ' with ' + parameters.PROD.split('_')[-4] + ' of ' + s.target, fontsize=16)
+    plt.title('spectra: '+s.tag[:-13]+' with '+parameters.PROD.split('_')[-4] +' of '+s.target, fontsize=16)
     plt.grid(True)
     plt.show()
-
 
 def plot_spec_target(Throughput, save_target):
     plt.figure(figsize=[10, 10])
     plt.plot(Throughput.lambdas_calspec, Throughput.data_calspec_org, c='red', label='CALSPEC')
     plt.plot(Throughput.new_lambda, Throughput.data_calspec, c='black', label='CALSPEC filtered')
-    plt.plot(Throughput.lambdas, Throughput.data_bouguer / (Throughput.data_disp * Throughput.data_tel), c='blue',
-             label='CALSPEC exact')
-    plt.axis([Throughput.lambda_min, Throughput.lambda_max, 0, max(Throughput.data_calspec_org) * 1.1])
+    plt.plot(Throughput.lambdas, Throughput.data_bouguer / (Throughput.data_disp * Throughput.data_tel), c='blue', label='CALSPEC exact')
+    plt.axis([Throughput.lambda_min,Throughput.lambda_max,0,max(Throughput.data_calspec_org)*1.1])
     plt.xlabel('$\lambda$ (nm)', fontsize=13)
     plt.ylabel('erg/s/cm2/Hz', fontsize=13)
     plt.title('spectra CALSPEC: ' + Throughput.target, fontsize=16)
@@ -1144,13 +1120,16 @@ def plot_spec_target(Throughput, save_target):
 
     if save_target:
         if os.path.exists(parameters.OUTPUTS_TARGET):
-            plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.png')
+            plt.savefig(parameters.OUTPUTS_TARGET+'CALSPEC, ' + Throughput.target+'.png')
         else:
             os.makedirs(parameters.OUTPUTS_TARGET)
-            plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.png')
+            plt.savefig(parameters.OUTPUTS_TARGET+'CALSPEC, ' + Throughput.target+'.png')
 
     plt.show()
 
+
+def plot_filter(save_filter):
+    return 1
 
 def plot_throughput_sim(Throughput, save_Throughput):
     T = Throughput
@@ -1159,24 +1138,21 @@ def plot_throughput_sim(Throughput, save_Throughput):
     fig, ax = plt.subplots(2, 1, sharex="all", figsize=[14, 12], constrained_layout=True, gridspec_kw=gs_kw)
 
     ax[0].scatter(T.lambdas, T.data / T.data_tel, c='black', label='T_disp Vincent', s=15, zorder=2)
-    ax[0].errorbar(T.lambdas, T.data / T.data_tel, xerr=None, yerr=T.err / T.data_tel, fmt='none', capsize=1,
-                   ecolor='black', zorder=2,
-                   elinewidth=2)
+    ax[0].errorbar(T.lambdas, T.data / T.data_tel, xerr=None, yerr=T.err / T.data_tel, fmt='none', capsize=1, ecolor='black', zorder=2,
+                       elinewidth=2)
 
     ax[0].scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='T_disp exacte')
-    ax[0].errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue',
-                   zorder=1,
-                   elinewidth=2)
+    ax[0].errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue', zorder=1,
+                       elinewidth=2)
 
     if T.order2:
         ax[0].scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', label='T_disp Vincent ordre2', s=15, zorder=2)
-        ax[0].errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel, fmt='none',
-                       capsize=1,
-                       ecolor='red', zorder=2, elinewidth=2)
+        ax[0].errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel, fmt='none', capsize=1,
+                   ecolor='red', zorder=2,elinewidth=2)
 
     ax[0].set_xlabel('$\lambda$ (nm)', fontsize=20)
     ax[0].set_ylabel('Transmission instrumentale', fontsize=20)
-    ax[0].set_title('Transmission du ' + T.disperseur + ', ' + parameters.PROD_NAME, fontsize=18)
+    ax[0].set_title('Transmission du '+ T.disperseur +', '+parameters.PROD_NAME, fontsize=18)
     ax[0].get_xaxis().set_tick_params(labelsize=17)
     ax[0].get_yaxis().set_tick_params(labelsize=14)
     ax[0].grid(True)
@@ -1187,9 +1163,9 @@ def plot_throughput_sim(Throughput, save_Throughput):
 
     "Tableaux avec les ecarts relatifs"
 
-    Rep_sim_norm = (T.data / (T.data_tel * T.data_disp) - 1) * 100
+    Rep_sim_norm = (T.data / (T.data_tel * T.data_disp)  - 1) * 100
     if T.order2:
-        Rep_sim_norm_bis = (T.data_order2 / (T.data_tel * T.data_disp) - 1) * 100
+        Rep_sim_norm_bis = (T.data_order2 / (T.data_tel * T.data_disp)  - 1) * 100
     zero = np.zeros(1000)
 
     X_2 = 0
@@ -1227,7 +1203,7 @@ def plot_throughput_sim(Throughput, save_Throughput):
     ax[1].grid(True)
 
     ax[1].yaxis.set_ticks(range(int(min(Rep_sim_norm)) - 2, int(max(Rep_sim_norm)) + 4,
-                                (int(max(Rep_sim_norm)) + 6 - int(min(Rep_sim_norm))) // 8))
+                                    (int(max(Rep_sim_norm)) + 6 - int(min(Rep_sim_norm))) // 8))
 
     ax[1].text(550, max(Rep_sim_norm) * 3 / 4, '$\sigma$= ' + str(X_2)[:4] + '%', color='black', fontsize=20)
     if T.order2:
@@ -1235,15 +1211,12 @@ def plot_throughput_sim(Throughput, save_Throughput):
     plt.subplots_adjust(wspace=0, hspace=0)
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM):
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM+'throughput_sim, '+ T.disperseur +', '+parameters.PROD.split('_')[-4]+'.png')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_SIM)
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM+'throughput_sim, '+ T.disperseur +', '+parameters.PROD.split('_')[-4]+'.png')
 
     plt.show()
-
 
 def plot_throughput_reduc(Throughput, save_Throughput):
     T = Throughput
@@ -1253,28 +1226,25 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
         thorlab = np.loadtxt(T.rep_disp_ref)
 
-        thorlab_data = sp.interpolate.interp1d(thorlab.T[0], thorlab.T[1], bounds_error=False,
-                                               fill_value="extrapolate")(T.lambdas)
+        thorlab_data = sp.interpolate.interp1d(thorlab.T[0], thorlab.T[1], bounds_error=False, fill_value="extrapolate")(T.lambdas)
 
         Tinst = sp.signal.savgol_filter(T.data / thorlab_data, 81, 3)
         ax2.scatter(T.lambdas, Tinst, c='black', label='rep tel')
-        ax2.errorbar(T.lambdas, Tinst, xerr=None, yerr=T.err / thorlab_data, fmt='none', capsize=1,
-                     ecolor='black', zorder=2, elinewidth=2)
+        ax2.errorbar(T.lambdas,  Tinst, xerr=None, yerr=T.err / thorlab_data, fmt='none', capsize=1,
+                       ecolor='black', zorder=2, elinewidth=2)
         if T.order2:
             Tinst_order2 = sp.signal.savgol_filter(T.data_order2 / thorlab_data, 81, 3)
             Tinst_order2_err = sp.signal.savgol_filter(T.err_order2 / thorlab_data, 81, 3)
             ax2.scatter(T.lambdas, Tinst_order2, c='red', label='rep tel en enlevant ordre2')
             ax2.errorbar(T.lambdas, Tinst_order2, xerr=None, yerr=Tinst_order2_err, fmt='none', capsize=1,
-                         ecolor='red', zorder=2, elinewidth=2)
+                       ecolor='red', zorder=2, elinewidth=2)
         ax2.scatter(T.lambdas, T.data_tel, c='blue', label='rep CTIO Sylvie')
         ax2.errorbar(T.lambdas, T.data_tel, xerr=None, yerr=T.data_tel_err, fmt='none', capsize=1,
-                     ecolor='blue', zorder=2, elinewidth=2)
+                       ecolor='blue', zorder=2, elinewidth=2)
 
         ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
         ax2.set_ylabel("Transmission telescope", fontsize=22)
-        ax2.set_title(
-            "Transmission instrumentale du telescope, " + T.disperseur + ', ' + parameters.PROD.split('_')[-4],
-            fontsize=22)
+        ax2.set_title("Transmission instrumentale du telescope, "+T.disperseur+', '+parameters.PROD.split('_')[-4] , fontsize=22)
         ax2.get_xaxis().set_tick_params(labelsize=20)
         ax2.get_yaxis().set_tick_params(labelsize=20)
         ax2.legend(prop={'size': 17}, loc='upper right')
@@ -1283,7 +1253,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         if save_Throughput:
             if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, ' + parameters.PROD.split('_')[-4] + '.png')
+                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, ' +parameters.PROD.split('_')[-4] + '.png')
                 fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300'), 'w')
 
                 for i in range(len(T.lambdas)):
@@ -1295,11 +1265,10 @@ def plot_throughput_reduc(Throughput, save_Throughput):
                 fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
-                    fichier.write(
-                        str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
+                    fichier.write(str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
                 fichier.close()
                 plt.savefig(
-                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, ' + parameters.PROD.split('_')[-4] + '.png')
+                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, ' +parameters.PROD.split('_')[-4] + '.png')
         plt.show()
 
     fig = plt.figure(figsize=[15, 10])
@@ -1307,27 +1276,26 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
     ax2.scatter(T.lambdas, T.data / T.data_tel, c='black', marker='.', label='Tinst_Vincent')
     ax2.errorbar(T.lambdas, T.data / T.data_tel, xerr=None, yerr=T.err / T.data_tel, fmt='none', capsize=1,
-                 ecolor='black', zorder=1, elinewidth=2)
+                    ecolor='black',zorder=1, elinewidth=2)
 
     if T.disperseur == 'Thor300':
         T.data_disp = thorlab_data
-        T.data_disp_err = thorlab_data * 0.01
+        T.data_disp_err = thorlab_data*0.01
         ax2.scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='Banc_LPNHE')
     else:
         ax2.scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='Tinst_Sylvie')
-    ax2.errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue',
-                 zorder=1,
-                 elinewidth=2)
+    ax2.errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue', zorder=1,
+                     elinewidth=2)
 
     if T.order2:
         ax2.scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', marker='.', label='Tinst_Vincent_ordre2')
         ax2.errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel,
-                     fmt='none', capsize=1, ecolor='red', zorder=1, elinewidth=2)
+        fmt = 'none', capsize = 1, ecolor = 'red',zorder = 1, elinewidth = 2)
 
     ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
     ax2.set_ylabel("Transmission disperseur", fontsize=22)
     ax2.set_title("Transmission instrumentale du, " + T.disperseur + ', ' + parameters.PROD_NAME,
-                  fontsize=22)
+                      fontsize=22)
     ax2.get_xaxis().set_tick_params(labelsize=20)
     ax2.get_yaxis().set_tick_params(labelsize=20)
     ax2.legend(prop={'size': 17}, loc='upper right')
@@ -1336,25 +1304,21 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC+'throughput_reduc, '+ T.disperseur +', '+parameters.PROD.split('_')[-4]+'.png')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC+'throughput_reduc, '+ T.disperseur +', '+parameters.PROD.split('_')[-4]+'.png')
     plt.show()
 
-
 def convert_from_fits_to_txt(prod_name, prod_txt):
+
     to_convert_list = []
     Lsimutxt = glob.glob(prod_txt + "/sim*spectrum.txt")
     Lreductxt = glob.glob(prod_txt + "/reduc*spectrum.txt")
     Lsimufits = glob.glob(prod_name + "/sim*spectrum.fits")
     Lreducfits = glob.glob(prod_name + "/reduc*spectrum.fits")
 
-    Ldefaut = glob.glob(prod_name + "/*bestfit*.txt") + glob.glob(prod_name + "/*fitting*.txt") + glob.glob(
-        prod_name + "/*A2=0*.fits") + glob.glob(prod_name + "/*20170530_201_spectrum*") + glob.glob(
-        prod_name + "/*20170530_200_spectrum*") + glob.glob(prod_name + "/*20170530_205_spectrum*")
+    Ldefaut = glob.glob(prod_name + "/*bestfit*.txt") + glob.glob(prod_name + "/*fitting*.txt") + glob.glob(prod_name + "/*A2=0*.fits") + glob.glob(prod_name + "/*20170530_201_spectrum*")+ glob.glob(prod_name + "/*20170530_200_spectrum*")+ glob.glob(prod_name + "/*20170530_205_spectrum*")
 
     Lsimutxt = [i for i in Lsimutxt if i not in Ldefaut]
     Lreductxt = [i for i in Lreductxt if i not in Ldefaut]
@@ -1374,6 +1338,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             if fichier not in Lreductxt:
                 to_convert_list.append(file)
 
+
         for i in range(len(to_convert_list)):
             startest = to_convert_list[i]
             s = Spectrum(startest)
@@ -1387,11 +1352,11 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             psf_transverse = s.chromatic_psf.table['fwhm']
             PARANGLE = hdu[0].header["PARANGLE"]
 
-            x0 = [TARGETX, TARGETY]
+            x0 = [TARGETX,TARGETY]
             disperser = s.disperser
             distance = disperser.grating_lambda_to_pixel(s.lambdas, x0=x0, order=1)
             distance -= adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
-            distance += adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
+            distance += adr_calib(s.lambdas/2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             lambdas_order2 = disperser.grating_pixel_to_lambda(distance, x0=x0, order=2)
 
             print(to_convert_list[i][:len(to_convert_list[i]) - 5])
@@ -1408,7 +1373,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
                 lambda_reel = s.target.wavelengths[0]
                 intensite_reel = s.target.spectra[0]
                 tag = to_convert_list[i].split('/')[-1]
-                fichier = open(os.path.join(prod_txt, tag.replace('fits', 'txt')), 'w')
+                fichier = open(os.path.join(prod_txt, tag.replace('fits','txt')), 'w')
                 fichier.write('#' + '\t' + star + '\t' + disperseur + '\t' + str(airmass) + '\t' + str(
                     TARGETX) + '\t' + str(TARGETY) + '\t' + str(D2CCD) + '\t' + str(PIXSHIFT) + '\t' + str(
                     ROTANGLE) + '\t' + str(PARANGLE) + '\n')
@@ -1416,13 +1381,12 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
                     if len(lambda_obs) > j:
                         if len(psf_transverse) > j:
                             fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\t' + str(
-                                lambda_obs[j]) + '\t' + str(intensite_obs[j]) + '\t' + str(
-                                intensite_err[j]) + '\t' + str(lambdas_order2[j]) + '\t' + str(
-                                psf_transverse[j]) + '\n')
+                                        lambda_obs[j]) + '\t' + str(intensite_obs[j]) + '\t' + str(
+                                        intensite_err[j]) + '\t' + str(lambdas_order2[j]) + '\t' + str(psf_transverse[j]) + '\n')
                         else:
                             fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\t' + str(
-                                lambda_obs[j]) + '\t' + str(intensite_obs[j]) + '\t' + str(
-                                intensite_err[j]) + '\t' + str(lambdas_order2[j]) + '\n')
+                                        lambda_obs[j]) + '\t' + str(intensite_obs[j]) + '\t' + str(
+                                        intensite_err[j]) + '\t' + str(lambdas_order2[j]) + '\n')
 
                     else:
                         fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\n')
@@ -1431,20 +1395,14 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
         return True
     else:
         print('already done')
-        return True, Lsimutxt, Lreductxt
+        return True,Lsimutxt,Lreductxt
 
+def extract_throughput(prod_name, sim, disperseur, prod_sim, prod_reduc, target="HD111980", order2=False, mega_fit=False,
+                       plot_atmo=False, plot_bouguer=False, plot_specs=False, plot_target=False, plot_filt=False, plot_Throughput=True,
+                       save_atmo=False, save_bouguer=False, save_target=False, save_Throughput=False, save_filter=False):
 
-def extract_throughput(prod_name, sim, disperseur, prod_sim, prod_reduc, target="HD111980", order2=False,
-                       mega_fit=False,
-                       plot_atmo=False, plot_bouguer=False, plot_specs=False, plot_target=False, plot_filt=False,
-                       plot_Throughput=True,
-                       save_atmo=False, save_bouguer=False, save_target=False, save_Throughput=False,
-                       save_filter=False):
-    spectrumrangeairmass = SpectrumRangeAirmass(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target,
-                                                plot_specs=plot_specs, prod_sim=prod_sim, prod_reduc=prod_reduc)
-    Throughput = TransmissionInstrumentale(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target,
-                                           order2=order2, mega_fit=mega_fit, plot_filt=plot_filt,
-                                           save_filter=save_filter, prod=prod_sim)
+    spectrumrangeairmass = SpectrumRangeAirmass(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target, plot_specs=plot_specs, prod_sim = prod_sim, prod_reduc = prod_reduc)
+    Throughput = TransmissionInstrumentale(prod_name=prod_name, sim=sim, disperseur=disperseur, target=target, order2=order2, mega_fit=mega_fit, plot_filt=plot_filt, save_filter=save_filter, prod=prod_sim)
     Throughput.calcul_throughput(spectrumrangeairmass)
 
     if plot_atmo:
@@ -1462,29 +1420,20 @@ def extract_throughput(prod_name, sim, disperseur, prod_sim, prod_reduc, target=
         else:
             plot_throughput_reduc(Throughput, save_Throughput)
 
-
-def prod_analyse(prod_name, prod_txt, data = 'all'):
+def prod_analyse(prod_name, prod_txt):
     CFT = convert_from_fits_to_txt(prod_name, prod_txt)
     if CFT[0]:
-        if data == 'all' or data == 'sim':
-            for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=False,
-                                   plot_target=False, save_atmo=False, save_bouguer=False, save_target=False,
-                                   save_Throughput=False, order2=True)
-        elif data == 'all' or data == 'reduc':
-            for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=True, plot_atmo=True, plot_target=True,save_atmo=True, save_bouguer=False, save_target=False, save_Throughput=True, order2=True)
 
+        for disperser in parameters.DISPERSER:
+            extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=False, plot_target=False,save_atmo=False, save_bouguer=False, save_target=False, save_Throughput=False, order2=True)
+        """
+        for disperser in parameters.DISPERSER:
+            extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=True, plot_atmo=True, plot_target=True,save_atmo=True, save_bouguer=False, save_target=False, save_Throughput=True, order2=True)
+        """
     else:
         print('relaunch, convert_fits_to_txt step')
 
-
 prod_txt = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_TXT)
 prod_name = os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME)
-extract_throughput(prod_txt, True, 'Thor300', glob.glob(prod_txt + "/sim*spectrum.txt"),
-                   glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_specs=False, plot_bouguer=False, plot_atmo=False,
-                   order2=True, mega_fit=True, save_Throughput=False, plot_Throughput=False)
-# prod_analyse(prod_name, prod_txt, data = 'sim')
-
-
-
+extract_throughput(prod_txt, True, 'Thor300', glob.glob(prod_txt + "/sim*spectrum.txt"), glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_specs = False, plot_bouguer=False, plot_atmo=False, order2=True, mega_fit=True, save_Throughput=False, plot_Throughput=True)
+#prod_analyse(prod_name, prod_txt)
