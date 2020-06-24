@@ -17,6 +17,8 @@ ________reduc_20170530_060_atmsim.fits
 mypath = os.path.dirname(__file__)
 
 PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1"
+PROD_NUM = "6.5"
+
 PROD_TXT = "data_txt/"+PROD
 PROD_NAME = "data/"+PROD
 PROD_DIRECTORY = os.path.join(mypath, "prod/")
@@ -33,7 +35,7 @@ version_6.4_order2=0.1
 version_7.0_order2 : simu with order2
 
 CC Lyon:
-data_30may_17 : version 6.5 (demander à Jérémy)
+CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1 : version 6.5 
 
 """
 
