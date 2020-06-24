@@ -19,11 +19,9 @@ mypath = os.path.dirname(__file__)
 PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1"
 PROD_NUM = "6.5"
 
-PROD_TXT = "data_txt/"+PROD
-PROD_NAME = "data/"+PROD
 PROD_DIRECTORY = os.path.join(mypath, "prod/")
-____prod_name = os.path.join(PROD_DIRECTORY, PROD_NAME)
-____prod_txt = os.path.join(PROD_DIRECTORY, PROD_TXT)
+PROD_TXT = os.path.join(PROD_DIRECTORY, "data_txt/"+PROD)
+PROD_NAME = os.path.join(PROD_DIRECTORY, "data/"+PROD)
 
 """
 prod names: 
@@ -97,3 +95,7 @@ START_WATER = 922
 END_WATER = 972
 RIGHT = 980
 LEFT = 378
+
+###________DEBUG_VERBOSE________###
+DEBUG = False
+VERBOSE = False
