@@ -23,7 +23,7 @@ class SpectrumAirmassFixed:
 
         >>> file_name = 'tests/data/reduc_20170530_134_spectrum.txt'
         >>> s = SpectrumAirmassFixed(file_name)
-        >>> plot_spectrums(s)
+        >>> plot_spectrum(s)
         """
         self.target = None
         self.disperseur = None
@@ -124,10 +124,8 @@ class SpectrumAirmassFixed:
         """
         fluxlum_Binobs = np.zeros(len(self.Bin) - 1)
         fluxlumBin_err = np.zeros(len(self.Bin) - 1)
-
         interpolation_obs = sp.interpolate.interp1d(self.lambdas, self.data, kind="linear", bounds_error=False,
                                                     fill_value=(0, 0))
-        print(self.tag)
 
         for v in range(len(self.Bin) - 1):
             X = np.linspace(self.Bin[v], self.Bin[v + 1], int(self.binwidths * 100))
@@ -145,7 +143,7 @@ class SpectrumAirmassFixed:
 
         return fluxlum_Binobs, fluxlumBin_err
 
-def plot_spectrums(s):
+def plot_spectrum(s):
     """plot the data of a SpectrumAirmassFixed.
 
     """

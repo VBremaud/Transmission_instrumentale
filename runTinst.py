@@ -15,7 +15,6 @@ args = parser.parse_args()
 
 parameters.VERBOSE = args.verbose
 disperser = args.disperser
-prod = args.prod
 
 if args.debug:
     parameters.DEBUG = True
@@ -29,5 +28,5 @@ if disperser is not None:
                    glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_specs=False, plot_bouguer=False, plot_atmo=False,
                    order2=True, mega_fit=False, save_Throughput=False, plot_Throughput=True)
 
-elif prod is not None:
-    prod_analyse(prod_name, prod_txt, data = prod)
+else:
+    prod_analyse(prod_name, prod_txt, data = args.prod)

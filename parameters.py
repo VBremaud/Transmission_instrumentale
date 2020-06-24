@@ -14,11 +14,16 @@ tests/
 ____data/ 
 ________reduc_20170530_060_atmsim.fits
 """
-mypath = os.path.dirname(__file__)
+
+###________INPUT WITH A NEW PROD________###
 
 PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1"
 PROD_NUM = "6.5"
 
+
+###________DIRECTORY PROD________###
+
+mypath = os.path.dirname(__file__)
 PROD_DIRECTORY = os.path.join(mypath, "prod/")
 PROD_TXT = os.path.join(PROD_DIRECTORY, "data_txt/"+PROD)
 PROD_NAME = os.path.join(PROD_DIRECTORY, "data/"+PROD)
@@ -30,12 +35,13 @@ version_6.3 : corrected simulations
 version_6.4 : adr add
 version_6.4_order2=0.05
 version_6.4_order2=0.1
-version_7.0_order2 : simu with order2
+version_6.5_order2 : simu with order2
 
 CC Lyon:
 CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1 : version 6.5 
 
 """
+###________DIRECTORY THROUGHPUT________###
 
 THROUGHPUT_DIR = os.path.join(mypath, "throughput/")
 rep_tel_name = os.path.join(THROUGHPUT_DIR, "ctio_throughput_1.txt") #for ctio_telescope
@@ -59,6 +65,7 @@ OUTPUTS_BOUGUER_REDUC = os.path.join(OUTPUTS_REDUC, "bouguer/")
 
 OUTPUTS_THROUGHPUT_SIM = os.path.join(OUTPUTS_SIMU, "throughput/")
 OUTPUTS_THROUGHPUT_REDUC = os.path.join(OUTPUTS_REDUC, "throughput/")
+
 
 ###________DISPERSER________###
 DISPERSER = ['Ron400', 'Thor300', 'HoloPhP', 'HoloPhAg', 'HoloAmAg']
@@ -96,6 +103,8 @@ END_WATER = 972
 RIGHT = 980
 LEFT = 378
 
-###________DEBUG_VERBOSE________###
+###________DEBUG_____PLOT____SAVE________###
 DEBUG = False
-VERBOSE = False
+
+
+###________ARGUMENTS________###

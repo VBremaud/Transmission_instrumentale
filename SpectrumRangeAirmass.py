@@ -60,6 +60,7 @@ class SpectrumRangeAirmass:
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
 
             if s.target == self.target and s.disperseur == self.disperseur:
+                print(s.tag)
                 s.load_spec_data()
                 data_bin, err_bin = s.adapt_from_lambdas_to_bin()
 
@@ -81,7 +82,7 @@ class SpectrumRangeAirmass:
 
                 self.names.append(self.list_spectrum[i])
                 if self.plot_specs:
-                    plot_spectrums(s)
+                    plot_spectrum(s)
 
         self.data_mag = np.array(self.data_mag)
         self.range_airmass = np.array(self.range_airmass)
@@ -357,7 +358,7 @@ class SpectrumRangeAirmass:
                     s = SpectrumAirmassFixed(file_name=self.names[outliers])
                     pl = input("Do you want check this spectra (y/n)? ")
                     if pl == 'y':
-                        plot_spectrums(s)
+                        plot_spectrum(s)
                     rm = input("Do you want keep this spectra (y/n)? ")
                     if rm == 'n':
                         indice.append(outliers)
