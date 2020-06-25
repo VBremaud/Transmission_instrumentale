@@ -113,6 +113,7 @@ class TransmissionInstrumentale:
         self.data = self.data_bouguer
         self.lambdas = self.new_lambda
         self.err = err_bouguer
+
         # self.data = filter_detect_lines(self.lambdas, self.data, self.plot_filt, self.save_filter)
 
         Data = sp.interpolate.interp1d(self.lambdas, self.data, kind="linear", bounds_error=False,
@@ -121,7 +122,7 @@ class TransmissionInstrumentale:
                                                fill_value="extrapolate")
         Err = sp.interpolate.interp1d(self.lambdas, self.err, kind="linear", bounds_error=False,
                                       fill_value="extrapolate")
-        self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
+        self.lambdas = self.new_lambda
 
         self.data_tel = Data_tel(self.lambdas)
         self.data_tel_err = Err_tel(self.lambdas)
@@ -153,25 +154,28 @@ class TransmissionInstrumentale:
             # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
 
         if self.mega_fit:
-            self.ord2, self.err_ord2 = spectrumrangeairmass.megafit_emcee()
+            self.ord2, self.err_order2 = spectrumrangeairmass.megafit_emcee()
             print(self.ord2)
             print(len(self.ord2))
             self.data_order2 = self.ord2
             self.lambdas = self.new_lambda
+
             # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
-            """
+            
             Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.data_bouguer, kind="linear", bounds_error=False,
                                                    fill_value="extrapolate")
+                                                   
             Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
                                           fill_value="extrapolate")
-            """
-            self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
+
+            self.lambdas = self.new_lambda
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
             # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
+
 
 def plot_atmosphere(Throughput, save_atmo, sim):
     fig = plt.figure(figsize=[15, 10])

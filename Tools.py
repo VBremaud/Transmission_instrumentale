@@ -39,21 +39,20 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
         for i in range(len(to_convert_list)):
             startest = to_convert_list[i]
             s = Spectrum(startest)
-            hdu = fits.open(startest)
-            airmass = hdu[0].header["AIRMASS"]
-            TARGETX = hdu[0].header["TARGETX"]
-            TARGETY = hdu[0].header["TARGETY"]
-            D2CCD = hdu[0].header["D2CCD"]
-            PIXSHIFT = hdu[0].header["PIXSHIFT"]
-            ROTANGLE = hdu[0].header["ROTANGLE"]
+            airmass = s.header["AIRMASS"]
+            TARGETX = s.header["TARGETX"]
+            TARGETY = s.header["TARGETY"]
+            D2CCD = s.header["D2CCD"]
+            PIXSHIFT = s.header["PIXSHIFT"]
+            ROTANGLE = s.header["ROTANGLE"]
             psf_transverse = s.chromatic_psf.table['fwhm']
-            PARANGLE = hdu[0].header["PARANGLE"]
+            PARANGLE = s.header["PARANGLE"]
 
             x0 = [TARGETX, TARGETY]
             disperser = s.disperser
             distance = disperser.grating_lambda_to_pixel(s.lambdas, x0=x0, order=1)
-            distance -= adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
-            distance += adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
+            distance += adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
+            distance -= adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             lambdas_order2 = disperser.grating_pixel_to_lambda(distance, x0=x0, order=2)
 
             print(to_convert_list[i][:len(to_convert_list[i]) - 5])
