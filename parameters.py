@@ -36,6 +36,7 @@ version_6.4 : adr add
 version_6.4_order2=0.05
 version_6.4_order2=0.1
 version_6.5_order2 : simu with order2
+version_6.6
 
 CC Lyon:
 CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1 : version 6.5 

@@ -153,6 +153,6 @@ def plot_spectrum(s):
                  elinewidth=2)
     plt.xlabel('$\lambda$ (nm)', fontsize=13)
     plt.ylabel('erg/s/cm2/nm', fontsize=13)
-    plt.title('spectra: ' + s.tag[:-13] + ' with ' + parameters.PROD.split('_')[-4] + ' of ' + s.target, fontsize=16)
+    plt.title('spectra: ' + s.tag[:-13] + ' with version_' + parameters.PROD_NUM +' of ' + s.target, fontsize=16)
     plt.grid(True)
     plt.show()
