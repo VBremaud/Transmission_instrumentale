@@ -60,6 +60,7 @@ class SpectrumRangeAirmass:
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
 
             if s.target == self.target and s.disperseur == self.disperseur:
+                print(s.tag)
                 s.load_spec_data()
                 data_bin, err_bin = s.adapt_from_lambdas_to_bin()
 
@@ -81,7 +82,7 @@ class SpectrumRangeAirmass:
 
                 self.names.append(self.list_spectrum[i])
                 if self.plot_specs:
-                    plot_spectrums(s)
+                    plot_spectrum(s)
 
         self.data_mag = np.array(self.data_mag)
         self.range_airmass = np.array(self.range_airmass)
@@ -223,7 +224,7 @@ class SpectrumRangeAirmass:
         return slope, ord, err_slope, err_ord, A2, A2_err
 
     def megafit_emcee(self):
-        nsamples = 8
+        nsamples = 500
 
         atm = []
         for j in range(len(self.names)):
@@ -244,7 +245,9 @@ class SpectrumRangeAirmass:
             Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
             model = f_tinst_atm(Tinst, ozone, eau, aerosols, atm)
             sigma2 = yerr * yerr
+            cov = np.diag(sigma2)
             return -0.5 * np.sum((y - model) ** 2 / sigma2)
+            #(y - model).T @ invcov @ (y - model)
 
         def log_prior(params_fit):
             Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
@@ -265,7 +268,12 @@ class SpectrumRangeAirmass:
                 return -np.inf
             return lp + log_likelihood(params_fit, atm, y, yerr)
 
-        slope, ord, err_slope, err_ord, A2, A2_err = self.bouguer_line_order2()
+        filename = "sps/" + self.disperseur + "_" + parameters.PROD_NUM + "_emcee.h5"
+
+        if os.path.exists(filename):
+            slope, ord, err_slope, err_ord = self.bouguer_line()
+        else:
+            slope, ord, err_slope, err_ord, A2, A2_err = self.bouguer_line_order2()
         p_ozone = 300
         p_eau = 5
         p_aerosols = 0.03
@@ -295,8 +303,6 @@ class SpectrumRangeAirmass:
         plt.errorbar(self.new_lambda, (np.exp(self.data_mag) - self.order2)[:,10], yerr=(self.err_mag * np.exp(self.data_mag))[:,10])
         plt.show()
         """
-
-        filename = "sps/" + self.disperseur + "_emcee.h5"
         backend = emcee.backends.HDFBackend(filename)
         """
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
@@ -327,16 +333,29 @@ class SpectrumRangeAirmass:
             for _ in sampler.sample(p0, iterations=max(0, nsamples - backend.iteration), progress=True, store=True):
                 continue
 
-        flat_samples = sampler.get_chain(discard=0, thin=1, flat=True)
+        flat_samples = sampler.get_chain(discard=200, thin=1, flat=True)
 
         Tinst = np.mean(flat_samples, axis=0)[:-3]
         Tinst_err = np.std(flat_samples, axis=0)[:-3]
 
         """
-        for i in range(5):
+        for i in range(30,50):
             plt.hist(flat_samples[:,i],bins=100)
             plt.show()
         """
+        fig, axes = plt.subplots(10, figsize=(10, 7), sharex=True)
+        samples = sampler.get_chain()
+        labels = [str(self.new_lambda[i]) for i in range(10)]
+
+        for i in range(10):
+            ax = axes[i]
+            ax.plot(samples[201, :, i], "k", alpha=0.3)
+            ax.set_xlim(0, len(samples))
+            ax.set_ylabel(labels[i])
+            ax.yaxis.set_label_coords(-0.1, 0.5)
+        
+        axes[-1].set_xlabel("step number");
+
         # Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
         print(np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3]))
         print(np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2]))
@@ -357,7 +376,7 @@ class SpectrumRangeAirmass:
                     s = SpectrumAirmassFixed(file_name=self.names[outliers])
                     pl = input("Do you want check this spectra (y/n)? ")
                     if pl == 'y':
-                        plot_spectrums(s)
+                        plot_spectrum(s)
                     rm = input("Do you want keep this spectra (y/n)? ")
                     if rm == 'n':
                         indice.append(outliers)

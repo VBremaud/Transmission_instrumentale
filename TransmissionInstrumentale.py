@@ -113,6 +113,7 @@ class TransmissionInstrumentale:
         self.data = self.data_bouguer
         self.lambdas = self.new_lambda
         self.err = err_bouguer
+
         # self.data = filter_detect_lines(self.lambdas, self.data, self.plot_filt, self.save_filter)
 
         Data = sp.interpolate.interp1d(self.lambdas, self.data, kind="linear", bounds_error=False,
@@ -121,6 +122,7 @@ class TransmissionInstrumentale:
                                                fill_value="extrapolate")
         Err = sp.interpolate.interp1d(self.lambdas, self.err, kind="linear", bounds_error=False,
                                       fill_value="extrapolate")
+        #self.lambdas = self.new_lambda
         self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
 
         self.data_tel = Data_tel(self.lambdas)
@@ -153,25 +155,29 @@ class TransmissionInstrumentale:
             # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
 
         if self.mega_fit:
-            self.ord2, self.err_ord2 = spectrumrangeairmass.megafit_emcee()
+            self.ord2, self.err_order2 = spectrumrangeairmass.megafit_emcee()
             print(self.ord2)
             print(len(self.ord2))
             self.data_order2 = self.ord2
             self.lambdas = self.new_lambda
+
             # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
             """
             Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.data_bouguer, kind="linear", bounds_error=False,
                                                    fill_value="extrapolate")
+            """
             Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
                                           fill_value="extrapolate")
-            """
+
+            #self.lambdas = self.new_lambda
             self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
             # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
+
 
 def plot_atmosphere(Throughput, save_atmo, sim):
     fig = plt.figure(figsize=[15, 10])
@@ -223,9 +229,9 @@ def plot_atmosphere(Throughput, save_atmo, sim):
                          np.exp(T.slope2) - T.err_slope2 * np.exp(T.slope2), color='green')
 
     if T.sim:
-        plt.title('Transmission atmosphérique, simulation, ' + T.disperseur + ', ' + parameters.PROD_NAME, fontsize=18)
+        plt.title('Transmission atmosphérique, simulation, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
     else:
-        plt.title('Transmission atmosphérique, données, ' + T.disperseur + ', ' + parameters.PROD_NAME, fontsize=18)
+        plt.title('Transmission atmosphérique, données, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
 
     ax.get_xaxis().set_tick_params(labelsize=17)
     ax.get_yaxis().set_tick_params(labelsize=14)
@@ -238,23 +244,19 @@ def plot_atmosphere(Throughput, save_atmo, sim):
         if T.sim:
             if os.path.exists(parameters.OUTPUTS_ATM_SIM):
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
             else:
                 os.makedirs(parameters.OUTPUTS_ATM_SIM)
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
         else:
             if os.path.exists(parameters.OUTPUTS_ATM_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
             else:
                 os.makedirs(parameters.OUTPUTS_ATM_REDUC)
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', ' + parameters.PROD.split('_')[
-                        -4] + '.png')
+                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
 
     plt.show()
 
@@ -289,24 +291,12 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
                         marker='o', s=30)
             plt.errorbar(S.range_airmass[i], S.data_mag[i], xerr=None, yerr=S.err_mag[i], fmt='none', capsize=1,
                          ecolor=(wavelength_to_rgb(T.new_lambda[i])), zorder=2, elinewidth=2)
-        """
-        if T.order2:
-            t_disperseur = T.t_disp_order2[i]
-            if i % 2 == 0:
-                a_p = T.slope[int(i / 2)]
-                b_p = T.ord[int(i / 2)]
-            else:
-                a_p = (T.slope[int(i / 2)] + T.slope[int(i / 2) + 1]) / 2
-                b_p = (T.ord[int(i / 2)] + T.ord[int(i / 2) + 1]) / 2
-            MAG = forder2(Z, T.slope2[i], T.ord2[i], T.A2[i])
-            if i % 10 == 0:
-                plt.plot(Z, MAG, c=wavelength_to_rgb(T.new_lambda[i]), linestyle='--')
-        """
+
     if T.sim:
-        plt.title('Droites de Bouguer, simulation, ' + T.disperseur + ', ' + parameters.PROD.split('_')[-4],
+        plt.title('Droites de Bouguer, simulation, ' + T.disperseur + ', version_' + parameters.PROD_NUM,
                   fontsize=18)
     else:
-        plt.title('Droites de Bouguer, données, ' + T.disperseur + ', ' + parameters.PROD.split('_')[-4], fontsize=18)
+        plt.title('Droites de Bouguer, données, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
 
     ax.get_xaxis().set_tick_params(labelsize=17)
     ax.get_yaxis().set_tick_params(labelsize=14)
@@ -318,21 +308,17 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
     if save_bouguer:
         if T.sim:
             if os.path.exists(parameters.OUTPUTS_BOUGUER_SIM):
-                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', ' +
-                            parameters.PROD.split('_')[-4] + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
             else:
                 os.makedirs(parameters.OUTPUTS_BOUGUER_SIM)
-                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', ' +
-                            parameters.PROD.split('_')[-4] + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
         else:
             if os.path.exists(parameters.OUTPUTS_BOUGUER_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', ' +
-                    parameters.PROD.split('_')[-4] + '.png')
+                    parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
             else:
                 os.makedirs(parameters.OUTPUTS_BOUGUER_REDUC)
-                plt.savefig(parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', ' +
-                            parameters.PROD.split('_')[-4] + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
     plt.show()
 
 def plot_spec_target(Throughput, save_target):
@@ -381,7 +367,7 @@ def plot_throughput_sim(Throughput, save_Throughput):
 
     ax[0].set_xlabel('$\lambda$ (nm)', fontsize=20)
     ax[0].set_ylabel('Transmission instrumentale', fontsize=20)
-    ax[0].set_title('Transmission du ' + T.disperseur + ', ' + parameters.PROD_NAME, fontsize=18)
+    ax[0].set_title('Transmission du ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
     ax[0].get_xaxis().set_tick_params(labelsize=17)
     ax[0].get_yaxis().set_tick_params(labelsize=14)
     ax[0].grid(True)
@@ -440,12 +426,10 @@ def plot_throughput_sim(Throughput, save_Throughput):
     plt.subplots_adjust(wspace=0, hspace=0)
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM):
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_SIM)
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
 
     plt.show()
 
@@ -477,7 +461,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
         ax2.set_ylabel("Transmission telescope", fontsize=22)
         ax2.set_title(
-            "Transmission instrumentale du telescope, " + T.disperseur + ', ' + parameters.PROD.split('_')[-4],
+            "Transmission instrumentale du telescope, " + T.disperseur + ', version_' + parameters.PROD_NUM,
             fontsize=22)
         ax2.get_xaxis().set_tick_params(labelsize=20)
         ax2.get_yaxis().set_tick_params(labelsize=20)
@@ -487,7 +471,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         if save_Throughput:
             if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, ' + parameters.PROD.split('_')[-4] + '.png')
+                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.png')
                 fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300'), 'w')
 
                 for i in range(len(T.lambdas)):
@@ -503,7 +487,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
                         str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
                 fichier.close()
                 plt.savefig(
-                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, ' + parameters.PROD.split('_')[-4] + '.png')
+                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.png')
         plt.show()
 
     fig = plt.figure(figsize=[15, 10])
@@ -530,7 +514,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
     ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
     ax2.set_ylabel("Transmission disperseur", fontsize=22)
-    ax2.set_title("Transmission instrumentale du, " + T.disperseur + ', ' + parameters.PROD_NAME,
+    ax2.set_title("Transmission instrumentale du, " + T.disperseur + ', version_' + parameters.PROD_NUM,
                   fontsize=22)
     ax2.get_xaxis().set_tick_params(labelsize=20)
     ax2.get_yaxis().set_tick_params(labelsize=20)
@@ -540,10 +524,8 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', ' +
-                        parameters.PROD.split('_')[-4] + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM+ '.png')
     plt.show()

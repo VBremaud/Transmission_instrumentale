@@ -39,21 +39,20 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
         for i in range(len(to_convert_list)):
             startest = to_convert_list[i]
             s = Spectrum(startest)
-            hdu = fits.open(startest)
-            airmass = hdu[0].header["AIRMASS"]
-            TARGETX = hdu[0].header["TARGETX"]
-            TARGETY = hdu[0].header["TARGETY"]
-            D2CCD = hdu[0].header["D2CCD"]
-            PIXSHIFT = hdu[0].header["PIXSHIFT"]
-            ROTANGLE = hdu[0].header["ROTANGLE"]
+            airmass = s.header["AIRMASS"]
+            TARGETX = s.header["TARGETX"]
+            TARGETY = s.header["TARGETY"]
+            D2CCD = s.header["D2CCD"]
+            PIXSHIFT = s.header["PIXSHIFT"]
+            ROTANGLE = s.header["ROTANGLE"]
             psf_transverse = s.chromatic_psf.table['fwhm']
-            PARANGLE = hdu[0].header["PARANGLE"]
+            PARANGLE = s.header["PARANGLE"]
 
             x0 = [TARGETX, TARGETY]
             disperser = s.disperser
             distance = disperser.grating_lambda_to_pixel(s.lambdas, x0=x0, order=1)
-            distance -= adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
-            distance += adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
+            distance += adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
+            distance -= adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             lambdas_order2 = disperser.grating_pixel_to_lambda(distance, x0=x0, order=2)
 
             print(to_convert_list[i][:len(to_convert_list[i]) - 5])
@@ -63,6 +62,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             intensite_obs = s.data
             intensite_err = s.err
 
+            cov = s.cov_matrix
             if s.target.wavelengths == []:
                 print('CALSPEC error')
 
@@ -90,6 +90,8 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
                         fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\n')
 
                 fichier.close()
+
+                np.save(os.path.join(prod_txt, tag.replace('fits', 'npy')),cov)
         return True
     else:
         print('already done')
@@ -130,10 +132,10 @@ def prod_analyse(prod_name, prod_txt, data='all'):
     if CFT[0]:
         if data == 'all' or data == 'sim':
             for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=False,
-                                   plot_target=False, save_atmo=False, save_bouguer=False, save_target=False,
-                                   save_Throughput=False, order2=True)
-        elif data == 'all' or data == 'reduc':
+                extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=True,
+                                   plot_target=False, save_atmo=True, save_bouguer=False, save_target=False,
+                                   save_Throughput=True, order2=True)
+        if data == 'all' or data == 'reduc':
             for disperser in parameters.DISPERSER:
                 extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=True, plot_atmo=True,
                                    plot_target=True, save_atmo=True, save_bouguer=False, save_target=False,
