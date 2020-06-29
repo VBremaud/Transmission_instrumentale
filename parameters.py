@@ -17,8 +17,8 @@ ________reduc_20170530_060_atmsim.fits
 
 ###________INPUT WITH A NEW PROD________###
 
-PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1"
-PROD_NUM = "6.5"
+PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.7/data_30may17_A2=0.1"
+PROD_NUM = "6.7"
 
 
 ###________DIRECTORY PROD________###

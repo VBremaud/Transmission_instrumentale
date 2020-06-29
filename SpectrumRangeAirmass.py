@@ -28,7 +28,10 @@ class SpectrumRangeAirmass:
         self.order2 = []
         self.names = []
         # ATTENTION à modifier #
-        self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2_bis.txt')  # self.disperseur +
+        if sim:
+            self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2_bis.txt')
+        else:
+            self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2.txt')  # self.disperseur +
         self.prod_sim = prod_sim
         self.prod_reduc = prod_reduc
         if prod_name != "":
@@ -55,7 +58,7 @@ class SpectrumRangeAirmass:
     def data_range_airmass(self):
         t_disp = np.loadtxt(self.file_tdisp_order2)
         T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
-                                               fill_value="extrapolate")
+                                               fill_value=(0, 0))
         for i in range(len(self.list_spectrum)):
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
 

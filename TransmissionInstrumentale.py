@@ -85,6 +85,12 @@ class TransmissionInstrumentale:
     def calcul_throughput(self, spectrumrangeairmass):
 
         self.slope, self.ord, self.err_slope, self.err_ord = spectrumrangeairmass.bouguer_line()
+
+        data_calspec = np.load(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib.txt.npy'))
+        Data_calspec = sp.interpolate.interp1d(np.arange(self.lambda_min, self.lambda_max, 1), data_calspec, kind="linear", bounds_error=False,
+                                            fill_value="extrapolate")
+        self.data_calspec = Data_calspec(self.new_lambda)
+
         disp = np.loadtxt(self.rep_disp_name)
         Data_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1], kind="linear", bounds_error=False,
                                             fill_value="extrapolate")
@@ -326,6 +332,8 @@ def plot_spec_target(Throughput, save_target):
     plt.title('spectra CALSPEC: ' + Throughput.target, fontsize=16)
     plt.grid(True)
     plt.legend(prop={'size': 12}, loc='upper right')
+
+    #np.save(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib_v6.7'), Throughput.data_bouguer / (Throughput.data_disp * Throughput.data_tel))
 
     if save_target:
         if os.path.exists(parameters.OUTPUTS_TARGET):

@@ -38,6 +38,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
 
         for i in range(len(to_convert_list)):
             startest = to_convert_list[i]
+            print(startest)
             s = Spectrum(startest)
             airmass = s.header["AIRMASS"]
             TARGETX = s.header["TARGETX"]
@@ -55,7 +56,6 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             distance -= adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             lambdas_order2 = disperser.grating_pixel_to_lambda(distance, x0=x0, order=2)
 
-            print(to_convert_list[i][:len(to_convert_list[i]) - 5])
             disperseur = s.disperser_label
             star = s.header['TARGET']
             lambda_obs = s.lambdas
@@ -137,8 +137,8 @@ def prod_analyse(prod_name, prod_txt, data='all'):
                                    save_Throughput=True, order2=True)
         if data == 'all' or data == 'reduc':
             for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=True, plot_atmo=True,
-                                   plot_target=True, save_atmo=True, save_bouguer=False, save_target=False,
+                extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=True,
+                                   plot_target=False, save_atmo=True, save_bouguer=False, save_target=False,
                                    save_Throughput=True, order2=True)
 
     else:
