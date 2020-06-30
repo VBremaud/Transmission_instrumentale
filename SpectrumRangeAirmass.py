@@ -7,6 +7,7 @@ import sys
 from schwimmbad import MPIPool
 from SpectrumAirmassFixed import *
 from spectractor.simulation.simulator import AtmosphereGrid  # grille d'atmosphère
+from numpy.linalg import inv
 
 class SpectrumRangeAirmass:
 
@@ -27,6 +28,8 @@ class SpectrumRangeAirmass:
         self.err_mag = []
         self.order2 = []
         self.names = []
+        self.cov = []
+        self.INVCOV = []
         # ATTENTION à modifier #
         self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2_bis.txt')  # self.disperseur +
         self.prod_sim = prod_sim
@@ -36,6 +39,7 @@ class SpectrumRangeAirmass:
             self.init_spectrumrangeairmass()
             self.data_range_airmass()
             self.check_outliers()
+            self.invcov()
 
     def init_spectrumrangeairmass(self):
         if self.sim:
@@ -62,8 +66,7 @@ class SpectrumRangeAirmass:
             if s.target == self.target and s.disperseur == self.disperseur:
                 print(s.tag)
                 s.load_spec_data()
-                data_bin, err_bin = s.adapt_from_lambdas_to_bin()
-
+                data_bin, err_bin, cov_bin = s.adapt_from_lambdas_to_bin()
                 data, err = convert_from_flam_to_mag(data_bin, err_bin)
                 for v in range(len(self.Bin) - 1):
                     self.data_mag[v].append(data[v])
@@ -80,6 +83,7 @@ class SpectrumRangeAirmass:
                     self.order2[v].append(I_order2[v] * LAMBDAS_ORDER2[v] * np.gradient(LAMBDAS_ORDER2)[v]
                                           / np.gradient(self.new_lambda)[v] / self.new_lambda[v])
 
+                self.cov.append(cov_bin)
                 self.names.append(self.list_spectrum[i])
                 if self.plot_specs:
                     plot_spectrum(s)
@@ -89,6 +93,7 @@ class SpectrumRangeAirmass:
         self.err_mag = np.array(self.err_mag)
         self.names = np.array(self.names)
         self.order2 = np.array(self.order2)
+        self.cov = np.array(self.cov)
 
     def bouguer_line(self):
         def flin(x, a, b):
@@ -223,6 +228,11 @@ class SpectrumRangeAirmass:
         """
         return slope, ord, err_slope, err_ord, A2, A2_err
 
+    def invcov(self):
+        self.INVCOV = []
+        for j in range(len(self.names)):
+            self.INVCOV.append(inv(self.cov[j]))
+
     def megafit_emcee(self):
         nsamples = 500
 
@@ -241,13 +251,63 @@ class SpectrumRangeAirmass:
                 model[:, j] = Tinst * a(self.new_lambda)
             return model
 
-        def log_likelihood(params_fit, atm, y, yerr):
+        def log_likelihood(params_fit, atm, y):
+            c=0
             Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
-            model = f_tinst_atm(Tinst, ozone, eau, aerosols, atm)
-            sigma2 = yerr * yerr
-            cov = np.diag(sigma2)
-            return -0.5 * np.sum((y - model) ** 2 / sigma2)
-            #(y - model).T @ invcov @ (y - model)
+            #model = f_tinst_atm(Tinst, ozone, eau, aerosols, atm)
+
+            Tinst_test = []
+            for j in range(len(self.names)):
+                Tinst_test.append(y[: ,j] / atm[j].simulate(ozone, eau, aerosols))
+
+            TINST_TEST = []
+            for j in range(len(Tinst_test[0])):
+                TINST_TEST.append(np.sqrt(np.sum(Tinst_test[:][j]**2))/len(Tinst_test))
+
+            model = f_tinst_atm(TINST_TEST, ozone, eau, aerosols, atm)
+            """
+            ####
+            disp = np.loadtxt(os.path.join(parameters.THROUGHPUT_DIR, self.disperseur + '.txt'))
+            Data_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1], kind="linear", bounds_error=False,
+                                                fill_value="extrapolate")
+            tel = np.loadtxt(parameters.rep_tel_name)
+            Data_tel = sp.interpolate.interp1d(tel.T[0], tel.T[1], kind="linear", bounds_error=False,
+                                               fill_value="extrapolate")
+            data_disp_new_lambda = Data_disp(self.new_lambda)
+            data_tel_new_lambda = Data_tel(self.new_lambda)
+            Tinst_true = data_tel_new_lambda * data_disp_new_lambda
+
+            model_true = f_tinst_atm(Tinst_true, 300, 5, 0.03, atm)
+            #model = model_true
+            #print(model)
+            #print(y)
+            #####
+            """
+            chi2 = 0
+            for j in range(len(self.names)):
+                invcov = self.INVCOV[j]
+                #print(invcov)
+                #print(len(y[:,j]),len(model[:, j]),invcov.shape)
+                #print(y[:, j])
+                #print(model[:, j])
+                chi2 += (y[:, j] - model[:, j]).T @ invcov @ (y[:,j] - model[:,j])
+                if j==5:
+                    n = np.random.randint(0, 100)
+                    if n > 95:
+                        c=1
+                        """
+                        plt.plot(self.new_lambda, y[:, j], c='blue')
+                        plt.plot(self.new_lambda, model[:, j], c='red')
+                        Err = [np.sqrt(abs(self.cov[j,i,i])) for i in range(len(self.new_lambda))]
+                        plt.errorbar(self.new_lambda, model[:, j], yerr=Err, fmt='none',
+                               capsize=1,
+                               ecolor='red', zorder=2, elinewidth=2)
+                        plt.show()
+                        """
+            if c==1:
+                #print(chi2 / (len(model) * len(model[0])))
+                c=0
+            return -0.5 * chi2
 
         def log_prior(params_fit):
             Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
@@ -262,11 +322,11 @@ class SpectrumRangeAirmass:
             else:
                 return -np.inf
 
-        def log_probability(params_fit, atm, y, yerr):
+        def log_probability(params_fit, atm, y):
             lp = log_prior(params_fit)
             if not np.isfinite(lp):
                 return -np.inf
-            return lp + log_likelihood(params_fit, atm, y, yerr)
+            return lp + log_likelihood(params_fit, atm, y)
 
         filename = "sps/" + self.disperseur + "_" + parameters.PROD_NUM + "_emcee.h5"
 
@@ -294,7 +354,7 @@ class SpectrumRangeAirmass:
             T.append(init_ozone[i])
             T.append(init_eau[i])
             T.append(init_aerosols[i])
-            print(T[-3:])
+            #print(T[-3:])
             pos.append(T)
         p0 = np.array(pos)
         nwalkers, ndim = p0.shape
@@ -316,7 +376,7 @@ class SpectrumRangeAirmass:
                 sys.exit(0)
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
                                             args=(atm, (np.exp(self.data_mag) - self.order2),
-                                                  self.err_mag * np.exp(self.data_mag)), pool=pool, backend=backend)
+                                                  ), pool=pool, backend=backend)
             if backend.iteration > 0:
                 p0 = backend.get_last_sample()
 
@@ -326,7 +386,7 @@ class SpectrumRangeAirmass:
         except ValueError:
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
                                             args=(atm, (np.exp(self.data_mag) - self.order2),
-                                                  self.err_mag * np.exp(self.data_mag)),
+                                                  ),
                                             threads=multiprocessing.cpu_count(), backend=backend)
             if backend.iteration > 0:
                 p0 = sampler.get_last_sample()
@@ -357,9 +417,9 @@ class SpectrumRangeAirmass:
         axes[-1].set_xlabel("step number");
 
         # Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
-        print(np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3]))
-        print(np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2]))
-        print(np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1]))
+        #print(np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3]))
+        #print(np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2]))
+        #print(np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1]))
         return Tinst, Tinst_err
 
     def check_outliers(self):
@@ -388,6 +448,7 @@ class SpectrumRangeAirmass:
             else:
                 outliers_detected = True
                 self.names = np.delete(self.names, indice[0])
+                self.cov = np.delete(self.names, indice[0])
                 self.data_mag = np.delete(self.data_mag, indice[0], 1)
                 self.range_airmass = np.delete(self.range_airmass, indice[0], 1)
                 self.err_mag = np.delete(self.err_mag, indice[0], 1)

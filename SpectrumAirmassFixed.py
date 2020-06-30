@@ -43,6 +43,7 @@ class SpectrumAirmassFixed:
         self.lambda_min = parameters.LAMBDA_MIN
         self.lambda_max = parameters.LAMBDA_MAX
         self.Bin = parameters.BIN
+        self.cov = np.load(file_name.replace('.txt', '.npy'))
         if file_name != "":
             self.file_name = file_name
             self.tag = file_name.split('/')[-1]
@@ -120,12 +121,15 @@ class SpectrumAirmassFixed:
 
         >>> file_name = 'tests/data/reduc_20170530_134_spectrum.txt'
         >>> s = SpectrumAirmassFixed(file_name)
-        >>> fluxlum_Binobs, fluxlumBin_err = s.adapt_from_lambdas_to_bin()
+        >>> fluxlum_Binobs, fluxlumBin_err, cov_bin = s.adapt_from_lambdas_to_bin()
         """
         fluxlum_Binobs = np.zeros(len(self.Bin) - 1)
         fluxlumBin_err = np.zeros(len(self.Bin) - 1)
         interpolation_obs = sp.interpolate.interp1d(self.lambdas, self.data, kind="linear", bounds_error=False,
                                                     fill_value=(0, 0))
+        cov_bin = np.zeros((len(self.Bin)-1,len(self.Bin)-1))
+        JMIN = list(np.zeros(len(self.Bin)-1))
+        JMAX = list(np.zeros(len(self.Bin)-1))
 
         for v in range(len(self.Bin) - 1):
             X = np.linspace(self.Bin[v], self.Bin[v + 1], int(self.binwidths * 100))
@@ -134,14 +138,21 @@ class SpectrumAirmassFixed:
 
             jmin = max(np.argmin(np.abs(self.lambdas - self.Bin[v])), 1)
             jmax = min(np.argmin(np.abs(self.lambdas - self.Bin[v + 1])), len(self.lambdas) - 1)
-            S = 0
-            "Propagation des incertitudes sur les intensites par bin, calcul sur les bords"
-            for j in range(jmin, jmax):
-                S += (self.err[j] * (self.lambdas[j + 1] - self.lambdas[j - 1]) / 2) ** 2
+            JMIN[v] = int(jmin)
+            JMAX[v] = int(jmax)
 
-            fluxlumBin_err[v] = np.sqrt(S) / self.binwidths
+        #print(JMIN,JMAX)
+        for v in range(len(self.Bin) - 1):
+            for k in range(len(self.Bin) - 1):
+                #print(self.cov.shape)
+                #print(JMIN[v],JMIN[k],JMAX[v],JMAX[k])
+                #print(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])
+                S = np.sum(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])/((JMAX[v]-JMIN[v])*(JMAX[k]-JMIN[k]))
+                cov_bin[v][k], cov_bin[k][v] = S, S
 
-        return fluxlum_Binobs, fluxlumBin_err
+            fluxlumBin_err[v] = np.sqrt(cov_bin[v][v])
+
+        return fluxlum_Binobs, fluxlumBin_err, cov_bin
 
 def plot_spectrum(s):
     """plot the data of a SpectrumAirmassFixed.

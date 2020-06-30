@@ -90,6 +90,16 @@ class TransmissionInstrumentale:
         data_order2 = spectrumrangeairmass.order2.T
         data_order2 /= self.data_calspec
         spectrumrangeairmass.order2 = data_order2.T
+        #print(self.data_calspec)
+        #print(self.data_calspec.T)
+        #print(self.data_calspec.T @ self.data_calspec)
+        MULT = np.zeros((len(self.data_calspec),len(self.data_calspec)))
+        for i in range(len(self.data_calspec)):
+            for j in range(len(self.data_calspec)):
+                MULT[i][j], MULT[j][i] = self.data_calspec[i] * self.data_calspec[j], self.data_calspec[i] * self.data_calspec[j]
+
+        spectrumrangeairmass.INVCOV *= MULT
+        spectrumrangeairmass.cov /= MULT
 
         self.slope, self.ord, self.err_slope, self.err_ord = spectrumrangeairmass.bouguer_line()
         disp = np.loadtxt(self.rep_disp_name)

@@ -25,8 +25,8 @@ prod_name = parameters.PROD_NAME
 
 if disperser is not None:
     extract_throughput(prod_txt, args.sim, disperser, glob.glob(prod_txt + "/sim*spectrum.txt"),
-                   glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_target = True, plot_bouguer=False, plot_atmo=True,
-                   order2=True, mega_fit=False, save_Throughput=False, plot_Throughput=True)
+                   glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_target = False, plot_bouguer=False, plot_atmo=False,
+                   order2=True, mega_fit=True, save_Throughput=False, plot_Throughput=False)
 
 else:
     prod_analyse(prod_name, prod_txt, data = args.prod)
