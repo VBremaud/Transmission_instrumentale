@@ -258,11 +258,11 @@ class SpectrumRangeAirmass:
 
             Tinst_test = []
             for j in range(len(self.names)):
-                Tinst_test.append(y[: ,j] / atm[j].simulate(ozone, eau, aerosols))
-
+                Tinst_test.append(y[: ,j] / atm[j].simulate(ozone, eau, aerosols)(self.new_lambda))
+            Tinst_test = np.array(Tinst_test)
             TINST_TEST = []
             for j in range(len(Tinst_test[0])):
-                TINST_TEST.append(np.sqrt(np.sum(Tinst_test[:][j]**2))/len(Tinst_test))
+                TINST_TEST.append(np.sqrt(np.sum(Tinst_test[:,j]**2)/len(Tinst_test)))
 
             model = f_tinst_atm(TINST_TEST, ozone, eau, aerosols, atm)
             """
@@ -295,7 +295,7 @@ class SpectrumRangeAirmass:
                     n = np.random.randint(0, 100)
                     if n > 95:
                         c=1
-                        """
+                        print(ozone, eau, aerosols)
                         plt.plot(self.new_lambda, y[:, j], c='blue')
                         plt.plot(self.new_lambda, model[:, j], c='red')
                         Err = [np.sqrt(abs(self.cov[j,i,i])) for i in range(len(self.new_lambda))]
@@ -303,10 +303,11 @@ class SpectrumRangeAirmass:
                                capsize=1,
                                ecolor='red', zorder=2, elinewidth=2)
                         plt.show()
-                        """
+
             if c==1:
                 #print(chi2 / (len(model) * len(model[0])))
                 c=0
+            print(chi2 / (len(model) * len(model[0])))
             return -0.5 * chi2
 
         def log_prior(params_fit):
