@@ -253,7 +253,7 @@ class SpectrumRangeAirmass:
 
         def log_likelihood(params_fit, atm, y):
             c=0
-            Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
+            ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
             #model = f_tinst_atm(Tinst, ozone, eau, aerosols, atm)
 
             Tinst_test = []
@@ -296,6 +296,7 @@ class SpectrumRangeAirmass:
                     if n > 95:
                         c=1
                         print(ozone, eau, aerosols)
+                        """
                         plt.plot(self.new_lambda, y[:, j], c='blue')
                         plt.plot(self.new_lambda, model[:, j], c='red')
                         Err = [np.sqrt(abs(self.cov[j,i,i])) for i in range(len(self.new_lambda))]
@@ -303,15 +304,15 @@ class SpectrumRangeAirmass:
                                capsize=1,
                                ecolor='red', zorder=2, elinewidth=2)
                         plt.show()
-
+                        """
             if c==1:
-                #print(chi2 / (len(model) * len(model[0])))
+                print(chi2 / (len(model) * len(model[0])))
                 c=0
-            print(chi2 / (len(model) * len(model[0])))
+            #print(chi2 / (len(model) * len(model[0])))
             return -0.5 * chi2
 
         def log_prior(params_fit):
-            Tinst, ozone, eau, aerosols = params_fit[:-3], params_fit[-3], params_fit[-2], params_fit[-1]
+            ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
 
             """
             if np.any(Tinst < 0) or np.any(Tinst > 1):
@@ -338,20 +339,20 @@ class SpectrumRangeAirmass:
         p_ozone = 300
         p_eau = 5
         p_aerosols = 0.03
-        p0 = np.array([np.exp(ord), p_ozone, p_eau, p_aerosols])
-        walker = 300
+        p0 = np.array([p_ozone, p_eau, p_aerosols])
+        walker = 10
+        """
         init_Tinst = []
         for i in range(walker):
             init_Tinst.append(p0[0] + 0.1 * np.random.randn(len(self.data_mag)))
-        init_ozone = p0[1] + p0[1] / 5 * np.random.randn(walker)
-        init_eau = p0[2] + p0[2] / 5 * np.random.randn(walker)
-        init_aerosols = p0[3] + p0[3] / 5 * np.random.randn(walker)
-        init_Tinst = np.array(init_Tinst)
+        """
+        init_ozone = p0[0] + p0[0] / 5 * np.random.randn(walker)
+        init_eau = p0[1] + p0[1] / 5 * np.random.randn(walker)
+        init_aerosols = p0[2] + p0[2] / 5 * np.random.randn(walker)
+        #init_Tinst = np.array(init_Tinst)
         pos = []
-        for i in range(len(init_Tinst)):
+        for i in range(walker):
             T = []
-            for j in range(len(init_Tinst[0])):
-                T.append(init_Tinst[i][j])
             T.append(init_ozone[i])
             T.append(init_eau[i])
             T.append(init_aerosols[i])
@@ -396,31 +397,50 @@ class SpectrumRangeAirmass:
 
         flat_samples = sampler.get_chain(discard=200, thin=1, flat=True)
 
+        """
         Tinst = np.mean(flat_samples, axis=0)[:-3]
         Tinst_err = np.std(flat_samples, axis=0)[:-3]
+        
 
-        """
-        for i in range(30,50):
+        for i in range(3):
             plt.hist(flat_samples[:,i],bins=100)
-            plt.show()
-        """
-        fig, axes = plt.subplots(10, figsize=(10, 7), sharex=True)
+            plt.savefig("histo_"+str(i)+".png")
+        
+        fig, axes = plt.subplots(3, figsize=(10, 7), sharex=True)
         samples = sampler.get_chain()
-        labels = [str(self.new_lambda[i]) for i in range(10)]
+        labels = ["ozone", "eau", "aerosols"]
+        
 
-        for i in range(10):
+        for i in range(3):
             ax = axes[i]
-            ax.plot(samples[201, :, i], "k", alpha=0.3)
+            ax.plot(samples[:, :, i], "k", alpha=0.3)
             ax.set_xlim(0, len(samples))
             ax.set_ylabel(labels[i])
             ax.yaxis.set_label_coords(-0.1, 0.5)
-        
+            plt.savefig('chaine_'+str(i)+".png")
         axes[-1].set_xlabel("step number");
+        """
 
         # Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
-        #print(np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3]))
-        #print(np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2]))
-        #print(np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1]))
+        ozone, d_ozone = np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3])
+        eau, d_eau = np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2])
+        aerosols, d_aerosols = np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1])
+        print(ozone, d_ozone)
+        print(eau, d_eau)
+        print(aerosols, d_aerosols)
+
+        y = (np.exp(self.data_mag) - self.order2)
+        Tinst_test = []
+        for j in range(len(self.names)):
+            Tinst_test.append(y[:, j] / atm[j].simulate(ozone, eau, aerosols)(self.new_lambda))
+        Tinst_test = np.array(Tinst_test)
+        TINST_TEST = []
+        TINST_ERR = []
+        for j in range(len(Tinst_test[0])):
+            TINST_TEST.append(np.sqrt(np.sum(Tinst_test[:, j] ** 2) / len(Tinst_test)))
+            TINST_ERR.append(np.std(Tinst_test[:, j]))
+        Tinst = np.array(TINST_TEST)
+        Tinst_err = np.array(TINST_ERR)
         return Tinst, Tinst_err
 
     def check_outliers(self):
