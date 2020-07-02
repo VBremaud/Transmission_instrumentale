@@ -133,14 +133,14 @@ def prod_analyse(prod_name, prod_txt, data='all'):
     if CFT[0]:
         if data == 'all' or data == 'sim':
             for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=True,
-                                   plot_target=False, save_atmo=True, save_bouguer=False, save_target=False,
-                                   save_Throughput=True, order2=True)
+                extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=False,
+                                   plot_target=False, save_atmo=False, save_bouguer=False, save_target=False,
+                                   save_Throughput=False, order2=True, mega_fit=True)
         if data == 'all' or data == 'reduc':
             for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=True, plot_atmo=True,
-                                   plot_target=True, save_atmo=True, save_bouguer=False, save_target=False,
-                                   save_Throughput=True, order2=True)
+                extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=False,
+                                   plot_target=False, save_atmo=False, save_bouguer=False, save_target=False,
+                                   save_Throughput=False, order2=True, mega_fit=True)
 
     else:
         print('relaunch, convert_fits_to_txt step')

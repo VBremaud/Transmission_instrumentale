@@ -83,8 +83,16 @@ class TransmissionInstrumentale:
         self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel, np.zeros(len(fluxlum_Binreel)))
 
     def calcul_throughput(self, spectrumrangeairmass):
+
+        data_calspec = np.load(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib_v6.7_megafit.npy'))
+        Data_calspec = sp.interpolate.interp1d(np.arange(self.lambda_min, self.lambda_max, 1), data_calspec,
+                                               kind="linear", bounds_error=False,
+                                               fill_value="extrapolate")
+        self.data_calspec = Data_calspec(self.new_lambda)
+
+        """
         data_mag = spectrumrangeairmass.data_mag.T
-        data_mag -= self.data_calspec_mag[0]
+        data_mag -= np.log(self.data_calspec)
         spectrumrangeairmass.data_mag = data_mag.T
 
         data_order2 = spectrumrangeairmass.order2.T
@@ -100,6 +108,7 @@ class TransmissionInstrumentale:
 
         spectrumrangeairmass.INVCOV *= MULT
         spectrumrangeairmass.cov /= MULT
+        """
 
         self.slope, self.ord, self.err_slope, self.err_ord = spectrumrangeairmass.bouguer_line()
         disp = np.loadtxt(self.rep_disp_name)
@@ -120,9 +129,9 @@ class TransmissionInstrumentale:
         """
         self.data_bouguer = np.exp(self.ord)
         err_bouguer = self.err_ord * self.data_bouguer
-        self.data = self.data_bouguer
+        self.data = self.data_bouguer / self.data_calspec
         self.lambdas = self.new_lambda
-        self.err = err_bouguer
+        self.err = err_bouguer / self.data_calspec
 
         # self.data = filter_detect_lines(self.lambdas, self.data, self.plot_filt, self.save_filter)
 
@@ -148,9 +157,9 @@ class TransmissionInstrumentale:
             self.slope2, self.ord2, self.err_slope2, self.err_ord2, self.A2, self.A2_err = spectrumrangeairmass.bouguer_line_order2()
             self.data_bouguer = np.exp(self.ord2)
             err_bouguer = self.err_ord2 * self.data_bouguer
-            self.data_order2 = self.data_bouguer
+            self.data_order2 = self.data_bouguer / self.data_calspec
             self.lambdas = self.new_lambda
-            self.err_order2 = err_bouguer
+            self.err_order2 = err_bouguer / self.data_calspec
             # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
@@ -168,16 +177,17 @@ class TransmissionInstrumentale:
             self.ord2, self.err_order2 = spectrumrangeairmass.megafit_emcee()
             print(self.ord2)
             print(len(self.ord2))
-            self.data_order2 = self.ord2
+            self.data_order2 = self.ord2 / self.data_calspec
+            self.err_order2 = self.err_order2 / self.data_calspec
             self.lambdas = self.new_lambda
 
             # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
-            """
-            Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.data_bouguer, kind="linear", bounds_error=False,
+
+            Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.ord2, kind="linear", bounds_error=False,
                                                    fill_value="extrapolate")
-            """
+
             Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
                                           fill_value="extrapolate")
 
@@ -343,6 +353,8 @@ def plot_spec_target(Throughput, save_target):
     plt.title('spectra CALSPEC: ' + Throughput.target, fontsize=16)
     plt.grid(True)
     plt.legend(prop={'size': 12}, loc='upper right')
+
+    #np.save(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib_v6.7_megafit'),Throughput.data_bouguer / (Throughput.data_disp * Throughput.data_tel))
 
     if save_target:
         if os.path.exists(parameters.OUTPUTS_TARGET):

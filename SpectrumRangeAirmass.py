@@ -31,7 +31,7 @@ class SpectrumRangeAirmass:
         self.cov = []
         self.INVCOV = []
         # ATTENTION à modifier #
-        self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2_bis.txt')  # self.disperseur +
+        self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2.txt')  # self.disperseur +
         self.prod_sim = prod_sim
         self.prod_reduc = prod_reduc
         if prod_name != "":
@@ -57,9 +57,14 @@ class SpectrumRangeAirmass:
             self.order2.append([])
 
     def data_range_airmass(self):
-        t_disp = np.loadtxt(self.file_tdisp_order2)
-        T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
+        if self.disperseur == 'Thor300':
+            t_disp = np.loadtxt(self.file_tdisp_order2)
+            T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
                                                fill_value="extrapolate")
+        else:
+            t_disp = np.loadtxt(self.file_tdisp_order2)
+            T_disperseur = sp.interpolate.interp1d(t_disp.T[0], np.zeros(len(t_disp.T[0])), kind="linear", bounds_error=False,
+                                                   fill_value="extrapolate")
         for i in range(len(self.list_spectrum)):
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
 
@@ -234,7 +239,7 @@ class SpectrumRangeAirmass:
             self.INVCOV.append(inv(self.cov[j]))
 
     def megafit_emcee(self):
-        nsamples = 500
+        nsamples = 200
 
         atm = []
         for j in range(len(self.names)):
@@ -330,8 +335,10 @@ class SpectrumRangeAirmass:
                 return -np.inf
             return lp + log_likelihood(params_fit, atm, y)
 
-        filename = "sps/" + self.disperseur + "_" + parameters.PROD_NUM + "_emcee.h5"
-
+        if self.sim:
+            filename = "sps/" + self.disperseur + "_" + parameters.PROD_NUM + "_emcee.h5"
+        else:
+            filename = "sps/" + self.disperseur + "_" + "reduc_" + parameters.PROD_NUM + "_emcee.h5"
         if os.path.exists(filename):
             slope, ord, err_slope, err_ord = self.bouguer_line()
         else:
@@ -395,7 +402,7 @@ class SpectrumRangeAirmass:
             for _ in sampler.sample(p0, iterations=max(0, nsamples - backend.iteration), progress=True, store=True):
                 continue
 
-        flat_samples = sampler.get_chain(discard=200, thin=1, flat=True)
+        flat_samples = sampler.get_chain(discard=50, thin=1, flat=True)
 
         """
         Tinst = np.mean(flat_samples, axis=0)[:-3]
@@ -468,8 +475,9 @@ class SpectrumRangeAirmass:
                 outliers_detected = False
             else:
                 outliers_detected = True
+                #print(self.names.shape,self.cov.shape,self.data_mag.shape,self.range_airmass.shape)
                 self.names = np.delete(self.names, indice[0])
-                self.cov = np.delete(self.names, indice[0])
+                self.cov = np.delete(self.cov, indice[0], 0)
                 self.data_mag = np.delete(self.data_mag, indice[0], 1)
                 self.range_airmass = np.delete(self.range_airmass, indice[0], 1)
                 self.err_mag = np.delete(self.err_mag, indice[0], 1)

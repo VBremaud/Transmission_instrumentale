@@ -147,7 +147,10 @@ class SpectrumAirmassFixed:
                 #print(self.cov.shape)
                 #print(JMIN[v],JMIN[k],JMAX[v],JMAX[k])
                 #print(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])
-                S = np.sum(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])/((JMAX[v]-JMIN[v])*(JMAX[k]-JMIN[k]))
+                if JMAX[v] != JMIN[v] and JMAX[k] != JMIN[k]:
+                    S = np.sum(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])/((JMAX[v]-JMIN[v])*(JMAX[k]-JMIN[k]))
+                else:
+                    S = 0
                 cov_bin[v][k], cov_bin[k][v] = S, S
 
             fluxlumBin_err[v] = np.sqrt(cov_bin[v][v])
