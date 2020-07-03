@@ -57,6 +57,7 @@ class SpectrumRangeAirmass:
             self.order2.append([])
 
     def data_range_airmass(self):
+
         if self.disperseur == 'Thor300':
             t_disp = np.loadtxt(self.file_tdisp_order2)
             T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
@@ -65,6 +66,10 @@ class SpectrumRangeAirmass:
             t_disp = np.loadtxt(self.file_tdisp_order2)
             T_disperseur = sp.interpolate.interp1d(t_disp.T[0], np.zeros(len(t_disp.T[0])), kind="linear", bounds_error=False,
                                                    fill_value="extrapolate")
+
+        t_disp = np.loadtxt(self.file_tdisp_order2)
+        T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
+                                               fill_value="extrapolate")
         for i in range(len(self.list_spectrum)):
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
 
@@ -238,8 +243,17 @@ class SpectrumRangeAirmass:
         for j in range(len(self.names)):
             self.INVCOV.append(inv(self.cov[j]))
 
+    def matrice_data(self):
+        y = (np.exp(self.data_mag) - self.order2)
+        nb_spectre = len(self.names)
+        nb_bin = len(self.data_mag)
+        D = np.zeros(nb_bin * nb_spectre)
+        for j in range(nb_spectre):
+            D[j * nb_bin: (j+1)*nb_bin] = y[:,j]
+        return D
+
     def megafit_emcee(self):
-        nsamples = 200
+        nsamples = 300
 
         atm = []
         for j in range(len(self.names)):
@@ -249,96 +263,72 @@ class SpectrumRangeAirmass:
                     'spectrum.txt', 'atmsim.fits'))
             atm.append(atmgrid)
 
+        D = self.matrice_data()
+
+        """
         def f_tinst_atm(Tinst, ozone, eau, aerosols, atm):
             model = np.zeros((len(self.data_mag), len(self.names)))
             for j in range(len(self.names)):
                 a = atm[j].simulate(ozone, eau, aerosols)
                 model[:, j] = Tinst * a(self.new_lambda)
             return model
+        """
 
-        def log_likelihood(params_fit, atm, y):
-            c=0
+        def Atm(atm, ozone, eau, aerosols):
+            nb_spectre = len(self.names)
+            nb_bin = len(self.data_mag)
+            M = np.zeros((nb_spectre, nb_bin, nb_bin))
+            M_p = np.zeros((nb_spectre * nb_bin, nb_bin))
+            for j in range(nb_spectre):
+                a = np.diagflat(atm[j].simulate(ozone, eau, aerosols)(self.new_lambda))
+                M[j, :, :] = a
+                M_p[nb_bin * j:nb_bin * (j+1),:] = a
+            return M, M_p
+
+        def log_likelihood(params_fit, atm):
+            nb_spectre = len(self.names)
+            nb_bin = len(self.data_mag)
             ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
-            #model = f_tinst_atm(Tinst, ozone, eau, aerosols, atm)
 
-            Tinst_test = []
-            for j in range(len(self.names)):
-                Tinst_test.append(y[: ,j] / atm[j].simulate(ozone, eau, aerosols)(self.new_lambda))
-            Tinst_test = np.array(Tinst_test)
-            TINST_TEST = []
-            for j in range(len(Tinst_test[0])):
-                TINST_TEST.append(np.sqrt(np.sum(Tinst_test[:,j]**2)/len(Tinst_test)))
+            M, M_p = Atm(atm, ozone, eau, aerosols)
+            #A = np.zeros(nb_bin)
+            #COV = np.zeros((nb_bin, nb_bin))
+            prod = np.zeros((nb_bin, nb_spectre * nb_bin))
+            for spec in range(nb_spectre):
+                prod[:,spec * nb_bin : (spec+1) * nb_bin] = M[spec] @ self.INVCOV[spec]
+            COV = inv(prod @ M_p)
+            A = COV @ prod @ D
 
-            model = f_tinst_atm(TINST_TEST, ozone, eau, aerosols, atm)
-            """
-            ####
-            disp = np.loadtxt(os.path.join(parameters.THROUGHPUT_DIR, self.disperseur + '.txt'))
-            Data_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1], kind="linear", bounds_error=False,
-                                                fill_value="extrapolate")
-            tel = np.loadtxt(parameters.rep_tel_name)
-            Data_tel = sp.interpolate.interp1d(tel.T[0], tel.T[1], kind="linear", bounds_error=False,
-                                               fill_value="extrapolate")
-            data_disp_new_lambda = Data_disp(self.new_lambda)
-            data_tel_new_lambda = Data_tel(self.new_lambda)
-            Tinst_true = data_tel_new_lambda * data_disp_new_lambda
-
-            model_true = f_tinst_atm(Tinst_true, 300, 5, 0.03, atm)
-            #model = model_true
-            #print(model)
-            #print(y)
-            #####
-            """
             chi2 = 0
-            for j in range(len(self.names)):
-                invcov = self.INVCOV[j]
-                #print(invcov)
-                #print(len(y[:,j]),len(model[:, j]),invcov.shape)
-                #print(y[:, j])
-                #print(model[:, j])
-                chi2 += (y[:, j] - model[:, j]).T @ invcov @ (y[:,j] - model[:,j])
-                if j==5:
-                    n = np.random.randint(0, 100)
-                    if n > 95:
-                        c=1
-                        print(ozone, eau, aerosols)
-                        """
-                        plt.plot(self.new_lambda, y[:, j], c='blue')
-                        plt.plot(self.new_lambda, model[:, j], c='red')
-                        Err = [np.sqrt(abs(self.cov[j,i,i])) for i in range(len(self.new_lambda))]
-                        plt.errorbar(self.new_lambda, model[:, j], yerr=Err, fmt='none',
-                               capsize=1,
-                               ecolor='red', zorder=2, elinewidth=2)
-                        plt.show()
-                        """
-            if c==1:
-                print(chi2 / (len(model) * len(model[0])))
-                c=0
-            #print(chi2 / (len(model) * len(model[0])))
+            for spec in range(nb_spectre):
+                mat = D[spec * nb_bin : (spec+1) * nb_bin] - M[spec] @ A
+                chi2 += mat @ self.INVCOV[spec] @ mat
+
+            n = np.random.randint(0, 100)
+            if n > 97:
+                print(chi2 / (nb_spectre * nb_bin))
+                print(ozone, eau, aerosols)
+
             return -0.5 * chi2
 
         def log_prior(params_fit):
             ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
-
-            """
-            if np.any(Tinst < 0) or np.any(Tinst > 1):
-                return -np.inf
-            """
-
             if 100 < ozone < 700 and 0 < eau < 10 and 0 < aerosols < 0.1:
                 return 0
             else:
                 return -np.inf
 
-        def log_probability(params_fit, atm, y):
+        def log_probability(params_fit, atm):
             lp = log_prior(params_fit)
             if not np.isfinite(lp):
                 return -np.inf
-            return lp + log_likelihood(params_fit, atm, y)
+            return lp + log_likelihood(params_fit, atm)
 
         if self.sim:
-            filename = "sps/" + self.disperseur + "_" + parameters.PROD_NUM + "_emcee.h5"
+            filename = "sps/" + self.disperseur + "_" + "sim_" + parameters.PROD_NUM + "_emcee.h5"
         else:
             filename = "sps/" + self.disperseur + "_" + "reduc_" + parameters.PROD_NUM + "_emcee.h5"
+
         if os.path.exists(filename):
             slope, ord, err_slope, err_ord = self.bouguer_line()
         else:
@@ -348,24 +338,12 @@ class SpectrumRangeAirmass:
         p_aerosols = 0.03
         p0 = np.array([p_ozone, p_eau, p_aerosols])
         walker = 10
-        """
-        init_Tinst = []
-        for i in range(walker):
-            init_Tinst.append(p0[0] + 0.1 * np.random.randn(len(self.data_mag)))
-        """
+
         init_ozone = p0[0] + p0[0] / 5 * np.random.randn(walker)
         init_eau = p0[1] + p0[1] / 5 * np.random.randn(walker)
         init_aerosols = p0[2] + p0[2] / 5 * np.random.randn(walker)
-        #init_Tinst = np.array(init_Tinst)
-        pos = []
-        for i in range(walker):
-            T = []
-            T.append(init_ozone[i])
-            T.append(init_eau[i])
-            T.append(init_aerosols[i])
-            #print(T[-3:])
-            pos.append(T)
-        p0 = np.array(pos)
+
+        p0 = np.array([[init_ozone[i], init_eau[i], init_aerosols[i]] for i in range(walker)])
         nwalkers, ndim = p0.shape
 
         """
@@ -373,19 +351,13 @@ class SpectrumRangeAirmass:
         plt.show()
         """
         backend = emcee.backends.HDFBackend(filename)
-        """
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
-                                        args=(atm, (np.exp(self.data_mag) - self.order2), self.err_mag * np.exp(self.data_mag)), threads=multiprocessing.cpu_count())
-        sampler.run_mcmc(pos, 2000, progress=True)
-        """
         try:
             pool = MPIPool()
             if not pool.is_master():
                 pool.wait()
                 sys.exit(0)
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
-                                            args=(atm, (np.exp(self.data_mag) - self.order2),
-                                                  ), pool=pool, backend=backend)
+                                            args=(atm,), pool=pool, backend=backend)
             if backend.iteration > 0:
                 p0 = backend.get_last_sample()
 
@@ -394,41 +366,16 @@ class SpectrumRangeAirmass:
             pool.close()
         except ValueError:
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
-                                            args=(atm, (np.exp(self.data_mag) - self.order2),
-                                                  ),
+                                            args=(atm,),
                                             threads=multiprocessing.cpu_count(), backend=backend)
             if backend.iteration > 0:
                 p0 = sampler.get_last_sample()
             for _ in sampler.sample(p0, iterations=max(0, nsamples - backend.iteration), progress=True, store=True):
                 continue
 
-        flat_samples = sampler.get_chain(discard=50, thin=1, flat=True)
+        flat_samples = sampler.get_chain(discard=100, thin=1, flat=True)
 
-        """
-        Tinst = np.mean(flat_samples, axis=0)[:-3]
-        Tinst_err = np.std(flat_samples, axis=0)[:-3]
-        
 
-        for i in range(3):
-            plt.hist(flat_samples[:,i],bins=100)
-            plt.savefig("histo_"+str(i)+".png")
-        
-        fig, axes = plt.subplots(3, figsize=(10, 7), sharex=True)
-        samples = sampler.get_chain()
-        labels = ["ozone", "eau", "aerosols"]
-        
-
-        for i in range(3):
-            ax = axes[i]
-            ax.plot(samples[:, :, i], "k", alpha=0.3)
-            ax.set_xlim(0, len(samples))
-            ax.set_ylabel(labels[i])
-            ax.yaxis.set_label_coords(-0.1, 0.5)
-            plt.savefig('chaine_'+str(i)+".png")
-        axes[-1].set_xlabel("step number");
-        """
-
-        # Tinst = sp.signal.savgol_filter(Tinst, 31, 2)
         ozone, d_ozone = np.mean(flat_samples[:, -3]), np.std(flat_samples[:, -3])
         eau, d_eau = np.mean(flat_samples[:, -2]), np.std(flat_samples[:, -2])
         aerosols, d_aerosols = np.mean(flat_samples[:, -1]), np.std(flat_samples[:, -1])
@@ -436,18 +383,40 @@ class SpectrumRangeAirmass:
         print(eau, d_eau)
         print(aerosols, d_aerosols)
 
-        y = (np.exp(self.data_mag) - self.order2)
-        Tinst_test = []
-        for j in range(len(self.names)):
-            Tinst_test.append(y[:, j] / atm[j].simulate(ozone, eau, aerosols)(self.new_lambda))
-        Tinst_test = np.array(Tinst_test)
-        TINST_TEST = []
-        TINST_ERR = []
-        for j in range(len(Tinst_test[0])):
-            TINST_TEST.append(np.sqrt(np.sum(Tinst_test[:, j] ** 2) / len(Tinst_test)))
-            TINST_ERR.append(np.std(Tinst_test[:, j]))
-        Tinst = np.array(TINST_TEST)
-        Tinst_err = np.array(TINST_ERR)
+        nb_spectre = len(self.names)
+        nb_bin = len(self.data_mag)
+        M, M_p = Atm(atm, ozone, eau, aerosols)
+        prod = np.zeros((nb_bin, nb_spectre * nb_bin))
+        for spec in range(nb_spectre):
+            prod[:, spec * nb_bin: (spec + 1) * nb_bin] = M[spec] @ self.INVCOV[spec]
+        COV = inv(prod @ M_p)
+        Tinst = COV @ prod @ D
+        Tinst_err = np.array([np.sqrt(COV[i,i]) for i in range(len(Tinst))])
+
+        def compute_correlation_matrix(cov):
+            rho = np.zeros_like(cov)
+            for i in range(cov.shape[0]):
+                for j in range(cov.shape[1]):
+                    rho[i, j] = cov[i, j] / np.sqrt(cov[i, i] * cov[j, j])
+            return rho
+
+        def plot_correlation_matrix_simple(ax, rho, axis_names, ipar=None):
+            if ipar is None:
+                ipar = np.arange(rho.shape[0]).astype(int)
+            im = plt.imshow(rho[ipar[:, None], ipar], interpolation="nearest", cmap='bwr', vmin=-1, vmax=1)
+            ax.set_title("Correlation matrix")
+            names = [axis_names[ip] for ip in ipar]
+            plt.xticks(np.arange(ipar.size), names, rotation='vertical', fontsize=11)
+            plt.yticks(np.arange(ipar.size), names, fontsize=11)
+            cbar = plt.colorbar(im)
+            cbar.ax.tick_params(labelsize=9)
+            plt.gcf().tight_layout()
+
+        fig = plt.figure(figsize=[15, 10])
+        ax = fig.add_subplot(111)
+        axis_names = [str(i) for i in range(len(COV))]
+        plot_correlation_matrix_simple(ax, compute_correlation_matrix(COV), axis_names, ipar=None)
+        plt.show()
         return Tinst, Tinst_err
 
     def check_outliers(self):

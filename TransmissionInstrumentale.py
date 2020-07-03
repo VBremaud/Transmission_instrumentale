@@ -196,7 +196,7 @@ class TransmissionInstrumentale:
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
-            # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
+            self.data_order2[101:-101] = sp.signal.savgol_filter(self.data_order2[101:-101], 51, 2)
 
 
 def plot_atmosphere(Throughput, save_atmo, sim):
@@ -423,10 +423,11 @@ def plot_throughput_sim(Throughput, save_Throughput):
     if T.order2:
         NewErr_bis = T.err_order2 / (T.data_tel * T.data_disp) * 100
 
+    """
     ax[1].scatter(T.lambdas, Rep_sim_norm, c='black', marker='o')
     ax[1].errorbar(T.lambdas, Rep_sim_norm, xerr=None, yerr=NewErr, fmt='none', capsize=1,
                    ecolor='black', zorder=2, elinewidth=2)
-
+    """
     if T.order2:
         ax[1].scatter(T.lambdas, Rep_sim_norm_bis, c='red', marker='o')
         ax[1].errorbar(T.lambdas, Rep_sim_norm_bis, xerr=None, yerr=NewErr_bis, fmt='none', capsize=1,
@@ -439,12 +440,12 @@ def plot_throughput_sim(Throughput, save_Throughput):
 
     ax[1].grid(True)
 
-    ax[1].yaxis.set_ticks(range(int(min(Rep_sim_norm)) - 2, int(max(Rep_sim_norm)) + 4,
-                                (int(max(Rep_sim_norm)) + 6 - int(min(Rep_sim_norm))) // 8))
+    ax[1].yaxis.set_ticks(range(int(min(Rep_sim_norm_bis)) - 2, int(max(Rep_sim_norm_bis)) + 4,
+                                (int(max(Rep_sim_norm_bis)) + 6 - int(min(Rep_sim_norm_bis))) // 8))
 
-    ax[1].text(550, max(Rep_sim_norm) * 3 / 4, '$\sigma$= ' + str(X_2)[:4] + '%', color='black', fontsize=20)
+    ax[1].text(550, max(Rep_sim_norm_bis) * 3 / 4, '$\sigma$= ' + str(X_2)[:4] + '%', color='black', fontsize=20)
     if T.order2:
-        ax[1].text(850, max(Rep_sim_norm) * 3 / 4, '$\sigma$= ' + str(X_2_bis)[:4] + '%', color='red', fontsize=20)
+        ax[1].text(850, max(Rep_sim_norm_bis) * 3 / 4, '$\sigma$= ' + str(X_2_bis)[:4] + '%', color='red', fontsize=20)
     plt.subplots_adjust(wspace=0, hspace=0)
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM):
@@ -457,7 +458,7 @@ def plot_throughput_sim(Throughput, save_Throughput):
 
 def plot_throughput_reduc(Throughput, save_Throughput):
     T = Throughput
-    if T.disperseur == 'Thor300':
+    if T.disperseur == 'Ron400':
         fig = plt.figure(figsize=[15, 10])
         ax2 = fig.add_subplot(111)
 

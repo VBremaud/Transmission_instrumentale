@@ -47,7 +47,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             ROTANGLE = s.header["ROTANGLE"]
             psf_transverse = s.chromatic_psf.table['fwhm']
             PARANGLE = s.header["PARANGLE"]
-            PSF_REG = s.header['PSF_REG']
+            #PSF_REG = s.header['PSF_REG']
 
             x0 = [TARGETX, TARGETY]
             disperser = s.disperser
@@ -67,6 +67,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             if s.target.wavelengths == []:
                 print('CALSPEC error')
 
+            ###### ATTENTION PSF_REG ######
             else:
                 lambda_reel = s.target.wavelengths[0]
                 intensite_reel = s.target.spectra[0]
@@ -74,7 +75,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
                 fichier = open(os.path.join(prod_txt, tag.replace('fits', 'txt')), 'w')
                 fichier.write('#' + '\t' + star + '\t' + disperseur + '\t' + str(airmass) + '\t' + str(
                     TARGETX) + '\t' + str(TARGETY) + '\t' + str(D2CCD) + '\t' + str(PIXSHIFT) + '\t' + str(
-                    ROTANGLE) + '\t' + str(PARANGLE) + '\t' + str(PSF_REG) + '\n')
+                    ROTANGLE) + '\t' + str(PARANGLE) + '\t' + str(PARANGLE) + '\n')
                 for j in range(len(lambda_reel)):
                     if len(lambda_obs) > j:
                         if len(psf_transverse) > j:

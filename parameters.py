@@ -17,8 +17,8 @@ ________reduc_20170530_060_atmsim.fits
 
 ###________INPUT WITH A NEW PROD________###
 
-PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.7/data_30may17_A2=0.1"
-PROD_NUM = "6.7"
+PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1"
+PROD_NUM = "6.5"
 
 
 ###________DIRECTORY PROD________###
@@ -45,7 +45,7 @@ CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1 : version 6.5
 ###________DIRECTORY THROUGHPUT________###
 
 THROUGHPUT_DIR = os.path.join(mypath, "throughput/")
-rep_tel_name = os.path.join(THROUGHPUT_DIR, "ctio_throughput_1.txt") #for ctio_telescope
+rep_tel_name = os.path.join(THROUGHPUT_DIR, "ctio_throughput_basethor300.txt") #for ctio_telescope
 rep_disp_ref = os.path.join(THROUGHPUT_DIR, "Thorlab.txt")
 ____rep_disp_name = os.path.join(THROUGHPUT_DIR, "disperseur")
 ____file_tdisp_order2 = os.path.join(THROUGHPUT_DIR, "disperseur_order2")
