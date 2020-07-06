@@ -8,6 +8,7 @@ from schwimmbad import MPIPool
 from SpectrumAirmassFixed import *
 from spectractor.simulation.simulator import AtmosphereGrid  # grille d'atmosphère
 from numpy.linalg import inv
+import matplotlib.colors
 
 class SpectrumRangeAirmass:
 
@@ -34,6 +35,7 @@ class SpectrumRangeAirmass:
         self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, 'Thor300_order2.txt')  # self.disperseur +
         self.prod_sim = prod_sim
         self.prod_reduc = prod_reduc
+        self.PSF_REG = []
         if prod_name != "":
             self.prod_name = prod_name
             self.init_spectrumrangeairmass()
@@ -68,8 +70,9 @@ class SpectrumRangeAirmass:
                                                    fill_value="extrapolate")
 
         t_disp = np.loadtxt(self.file_tdisp_order2)
-        T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
+        T_disperseur = sp.interpolate.interp1d(t_disp.T[0], np.zeros(len(t_disp.T[0])), kind="linear", bounds_error=False,
                                                fill_value="extrapolate")
+
         for i in range(len(self.list_spectrum)):
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
 
@@ -95,6 +98,7 @@ class SpectrumRangeAirmass:
 
                 self.cov.append(cov_bin)
                 self.names.append(self.list_spectrum[i])
+                self.PSF_REG.append(s.psf_reg)
                 if self.plot_specs:
                     plot_spectrum(s)
 
@@ -104,6 +108,7 @@ class SpectrumRangeAirmass:
         self.names = np.array(self.names)
         self.order2 = np.array(self.order2)
         self.cov = np.array(self.cov)
+        self.PSF_REG = np.array(self.PSF_REG)
 
     def bouguer_line(self):
         def flin(x, a, b):
@@ -126,7 +131,12 @@ class SpectrumRangeAirmass:
     def bouguer_line_order2(self):
         def forder2(x, a, b, A2=1):
             return np.log(np.exp(a * x + b) + A2 * order2)
-
+            """
+            if np.exp(a * x + b) + A2 * order2 > 0:
+                return np.log(np.exp(a * x + b) + A2 * order2)
+            else:
+                return -np.inf
+            """
         slope, ord, err_slope, err_ord = self.bouguer_line()
         A2 = np.zeros(len(self.data_mag))
         A2_err = np.zeros(len(self.data_mag))
@@ -179,7 +189,7 @@ class SpectrumRangeAirmass:
 
                 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
                                                 args=(self.range_airmass[i], self.data_mag[i], self.err_mag[i]))
-                sampler.run_mcmc(pos, 1000, progress=False)
+                sampler.run_mcmc(pos, 1000, progress=True)
                 """
                 fig, axes = plt.subplots(3, figsize=(10, 7), sharex=True)
                 samples = sampler.get_chain()
@@ -412,10 +422,68 @@ class SpectrumRangeAirmass:
             cbar.ax.tick_params(labelsize=9)
             plt.gcf().tight_layout()
 
+        def plot_err(err, ipar=None):
+            rho = np.zeros((len(self.names), len(self.data_mag)))
+            test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
+            print(test)
+            test2 = test.copy()
+            for Test in test:
+                C = 0
+                for Test2 in test:
+                    if Test > Test2:
+                        C+=1
+                test2[C] = Test
+            print(test2)
+            axis_names_vert = []
+            for i in range(rho.shape[0]):
+                k = np.argmin(abs(np.array(test) - test2[i]))
+                axis_names_vert.append(str(test[k]))
+                for j in range(rho.shape[1]):
+                    rho[i, j] = err[k * len(self.data_mag) + j]
+            if ipar is None:
+                vert = np.arange(rho.shape[0]).astype(int)
+                hor = np.arange(rho.shape[1]).astype(int)
+            fig = plt.figure(figsize=[15, 15])
+            ax = fig.add_subplot(111)
+            axis_names_hor = [str(self.new_lambda[i]) for i in range(len(self.new_lambda))]
+            norm = matplotlib.colors.SymLogNorm(vmin=-np.max(abs(rho)), vmax=np.max(abs(rho)), linthresh=10)
+            im = plt.imshow(rho[vert[:, None], hor], interpolation="nearest", cmap='bwr', norm = norm, vmin=-np.max(abs(rho)), vmax=np.max(abs(rho)))
+            ax.set_title("(data - model) / err, version "+parameters.PROD_NUM)
+            print(np.mean(rho))
+            names_vert = [axis_names_vert[ip] for ip in vert]
+            names_hor = [axis_names_hor[ip] for ip in hor]
+            plt.xticks(np.arange(0, hor.size, 3), names_hor[::3], rotation='vertical', fontsize=11)
+            plt.yticks(np.arange(0, vert.size, 3), names_vert[::3], fontsize=11)
+            cbar = plt.colorbar(im)
+            cbar.ax.tick_params(labelsize=9)
+            #cbar.ax.set_yticklabels(['{:.0f}'.format(x) for x in np.linspace(np.min(rho), np.max(rho), 10)])                                    #fontsize=16, weight='bold')
+            plt.gcf().tight_layout()
+
         fig = plt.figure(figsize=[15, 10])
         ax = fig.add_subplot(111)
         axis_names = [str(i) for i in range(len(COV))]
         plot_correlation_matrix_simple(ax, compute_correlation_matrix(COV), axis_names, ipar=None)
+
+        err = np.zeros_like(D)
+        for j in range(len(self.names)):
+            for i in range(len(self.data_mag)):
+                err[j * len(self.data_mag) + i] = np.sqrt(self.cov[j][i,i])
+        model = M_p @ Tinst
+        Err = (D - model) / err
+        plot_err(Err)
+
+        test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
+        Kplot = [181, 186, 191, 196]
+        for i in range(len(Kplot)):
+            k = np.argmin(abs(np.array(test) - Kplot[i]))
+            fig = plt.figure(figsize=[15, 15])
+            ax = fig.add_subplot(111)
+            plt.plot(self.new_lambda, model[k * len(self.new_lambda) : (k+1) * len(self.new_lambda)], c='red', label='model')
+            plt.plot(self.new_lambda, D[k * len(self.new_lambda) : (k+1) * len(self.new_lambda)], c='blue', label='data')
+            plt.title("spectrum :"+str(Kplot[i]))
+            plt.grid(True)
+            plt.legend()
+
         plt.show()
         return Tinst, Tinst_err
 
@@ -442,6 +510,21 @@ class SpectrumRangeAirmass:
                     break
             if len(indice) == 0:
                 outliers_detected = False
+                test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
+                i=0
+                while i<len(self.names):
+                    if test[i] == 81 or test[i] == 86 or test[i] == 91 or test[i] == 121 or test[i] == 141 or test[i] == 181:
+                        self.names = np.delete(self.names, i)
+                        self.cov = np.delete(self.cov, i, 0)
+                        self.data_mag = np.delete(self.data_mag, i, 1)
+                        self.range_airmass = np.delete(self.range_airmass, i, 1)
+                        self.err_mag = np.delete(self.err_mag, i, 1)
+                        self.order2 = np.delete(self.order2, i, 1)
+                        self.PSF_REG = np.delete(self.PSF_REG, i)
+                        print('ok')
+                        test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
+                    else:
+                        i+=1
             else:
                 outliers_detected = True
                 #print(self.names.shape,self.cov.shape,self.data_mag.shape,self.range_airmass.shape)
@@ -451,7 +534,7 @@ class SpectrumRangeAirmass:
                 self.range_airmass = np.delete(self.range_airmass, indice[0], 1)
                 self.err_mag = np.delete(self.err_mag, indice[0], 1)
                 self.order2 = np.delete(self.order2, indice[0], 1)
-
+                self.PSF_REG = np.delete(self.PSF_REG, indice[0])
                 indice = []
 
 def convert_from_flam_to_mag(data, err):

@@ -39,13 +39,14 @@ version_6.5_order2 : simu with order2
 version_6.6
 
 CC Lyon:
-CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1 : version 6.5 
+CTIODataJune2017_reduced_RG715_v2_prod6.7/data_30may17_A2=0.1 : version 6.5 
 
 """
 ###________DIRECTORY THROUGHPUT________###
 
 THROUGHPUT_DIR = os.path.join(mypath, "throughput/")
-rep_tel_name = os.path.join(THROUGHPUT_DIR, "ctio_throughput_basethor300.txt") #for ctio_telescope
+rep_tel_name = os.path.join(THROUGHPUT_DIR, "ctio_throughput_basethor300_prod6.7.txt") #for ctio_telescope
+#"ctio_throughput_basethor300_prod6.7.txt"
 rep_disp_ref = os.path.join(THROUGHPUT_DIR, "Thorlab.txt")
 ____rep_disp_name = os.path.join(THROUGHPUT_DIR, "disperseur")
 ____file_tdisp_order2 = os.path.join(THROUGHPUT_DIR, "disperseur_order2")

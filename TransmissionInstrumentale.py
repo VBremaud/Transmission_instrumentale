@@ -83,13 +83,13 @@ class TransmissionInstrumentale:
         self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel, np.zeros(len(fluxlum_Binreel)))
 
     def calcul_throughput(self, spectrumrangeairmass):
-
+        """
         data_calspec = np.load(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib_v6.7_megafit.npy'))
         Data_calspec = sp.interpolate.interp1d(np.arange(self.lambda_min, self.lambda_max, 1), data_calspec,
                                                kind="linear", bounds_error=False,
                                                fill_value="extrapolate")
         self.data_calspec = Data_calspec(self.new_lambda)
-
+        """
         """
         data_mag = spectrumrangeairmass.data_mag.T
         data_mag -= np.log(self.data_calspec)
@@ -458,7 +458,7 @@ def plot_throughput_sim(Throughput, save_Throughput):
 
 def plot_throughput_reduc(Throughput, save_Throughput):
     T = Throughput
-    if T.disperseur == 'Ron400':
+    if T.disperseur == 'Thor300':
         fig = plt.figure(figsize=[15, 10])
         ax2 = fig.add_subplot(111)
 
@@ -481,6 +481,37 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         ax2.errorbar(T.lambdas, T.data_tel, xerr=None, yerr=T.data_tel_err, fmt='none', capsize=1,
                      ecolor='blue', zorder=2, elinewidth=2)
 
+        x = 'throughput/20171006_RONCHI400_clear_45_median_tpt.txt'
+        a = np.loadtxt(x)
+        x = 'throughput/CBP_throughput.dat'
+        b = np.loadtxt(x)
+
+        def takePREMIER(elem):
+            return elem[0]
+
+        A = [[a.T[0][i], a.T[1][i]] for i in range(len(a.T[0]))]
+        A.sort(key=takePREMIER)
+        a.T[0] = [A[i][0] for i in range(len(A))]
+        a.T[1] = [A[i][1] for i in range(len(A))]
+
+        if a.T[0][0] < b.T[0][0]:
+            L = np.linspace(a.T[0][0] - 1, b.T[0][0], int(b.T[0][0] - a.T[0][0] + 1))
+            Y_L = [0.006] * int((b.T[0][0] - a.T[0][0] + 1))
+            X = np.concatenate((L, b.T[0]))
+            Z = np.concatenate((Y_L, b.T[1]))
+
+        if a.T[0][len(a.T[0]) - 1] > X[len(X) - 1]:
+            L = np.linspace(X[len(X) - 1], a.T[0][len(a.T[0]) - 1], int(a.T[0][len(a.T[0]) - 1] - X[len(X) - 1] + 1))
+            Y_L = [0.0021] * int((a.T[0][len(a.T[0]) - 1] - X[len(X) - 1] + 1))
+            M = np.concatenate((X, L))
+            N = np.concatenate((Z, Y_L))
+
+        interpolation = interp1d(M, N)
+        Y = interpolation(a.T[0])
+        Ynew = [a.T[1][i] / Y[i] for i in range(len(Y))]
+        ax2.scatter(a.T[0], Ynew / Ynew[int(len(Ynew) / 2)] * max(T.data_tel), c='purple', marker='.', label='T_inst CBP')
+
+
         ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
         ax2.set_ylabel("Transmission telescope", fontsize=22)
         ax2.set_title(
@@ -495,7 +526,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
             if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
                 plt.savefig(
                     parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.png')
-                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300'), 'w')
+                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300_prod6.7.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
                     fichier.write(
@@ -503,7 +534,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
                 fichier.close()
             else:
                 os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300.txt'), 'w')
+                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300_prod6.7.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
                     fichier.write(
@@ -529,12 +560,16 @@ def plot_throughput_reduc(Throughput, save_Throughput):
     ax2.errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue',
                  zorder=1,
                  elinewidth=2)
+    if T.disperseur == 'Ron400':
+        disp = np.loadtxt('throughput/ron400_banc.txt')
+        ax2.scatter(disp.T[0], disp.T[1], c='green', marker='.', label='Mesure sur banc')
 
     if T.order2:
         ax2.scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', marker='.', label='Tinst_Vincent_ordre2')
         ax2.errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel,
                      fmt='none', capsize=1, ecolor='red', zorder=1, elinewidth=2)
-
+        Tinst_order2 = T.data_order2 / T.data_tel
+        Tinst_order2_err = T.err_order2 / T.data_tel
     ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
     ax2.set_ylabel("Transmission disperseur", fontsize=22)
     ax2.set_title("Transmission instrumentale du, " + T.disperseur + ', version_' + parameters.PROD_NUM,
@@ -547,8 +582,29 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
+            plt.savefig(
+                parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
+            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ron400_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
+
+            for i in range(len(T.lambdas)):
+                fichier.write(
+                    str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
+            fichier.close()
+        else:
+            os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
+            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ron400_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
+
+            for i in range(len(T.lambdas)):
+                fichier.write(
+                    str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
+            fichier.close()
+            plt.savefig(
+                parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
+        """
+        if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
             plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
             plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM+ '.png')
+        """
     plt.show()

@@ -63,6 +63,7 @@ class SpectrumAirmassFixed:
                 self.target = Line[1]
                 self.disperseur = Line[2]
                 self.airmass = float(Line[3])
+                self.psf_reg = float(Line[10])
                 """
                 self.targetx = float(Line[4])
                 self.targetx = float(Line[4])
