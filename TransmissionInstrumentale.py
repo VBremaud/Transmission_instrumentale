@@ -581,6 +581,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
     fig.tight_layout()
 
     if save_Throughput:
+        """
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
             plt.savefig(
                 parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
@@ -606,5 +607,5 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
             plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM+ '.png')
-        """
+
     plt.show()
