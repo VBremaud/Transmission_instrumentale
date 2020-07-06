@@ -83,13 +83,32 @@ class TransmissionInstrumentale:
         self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel, np.zeros(len(fluxlum_Binreel)))
 
     def calcul_throughput(self, spectrumrangeairmass):
+        """
+        data_calspec = np.load(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib_v6.7_megafit.npy'))
+        Data_calspec = sp.interpolate.interp1d(np.arange(self.lambda_min, self.lambda_max, 1), data_calspec,
+                                               kind="linear", bounds_error=False,
+                                               fill_value="extrapolate")
+        self.data_calspec = Data_calspec(self.new_lambda)
+        """
+        """
         data_mag = spectrumrangeairmass.data_mag.T
-        data_mag -= self.data_calspec_mag[0]
+        data_mag -= np.log(self.data_calspec)
         spectrumrangeairmass.data_mag = data_mag.T
 
         data_order2 = spectrumrangeairmass.order2.T
         data_order2 /= self.data_calspec
         spectrumrangeairmass.order2 = data_order2.T
+        #print(self.data_calspec)
+        #print(self.data_calspec.T)
+        #print(self.data_calspec.T @ self.data_calspec)
+        MULT = np.zeros((len(self.data_calspec),len(self.data_calspec)))
+        for i in range(len(self.data_calspec)):
+            for j in range(len(self.data_calspec)):
+                MULT[i][j], MULT[j][i] = self.data_calspec[i] * self.data_calspec[j], self.data_calspec[i] * self.data_calspec[j]
+
+        spectrumrangeairmass.INVCOV *= MULT
+        spectrumrangeairmass.cov /= MULT
+        """
 
         self.slope, self.ord, self.err_slope, self.err_ord = spectrumrangeairmass.bouguer_line()
         disp = np.loadtxt(self.rep_disp_name)
@@ -110,9 +129,9 @@ class TransmissionInstrumentale:
         """
         self.data_bouguer = np.exp(self.ord)
         err_bouguer = self.err_ord * self.data_bouguer
-        self.data = self.data_bouguer
+        self.data = self.data_bouguer / self.data_calspec
         self.lambdas = self.new_lambda
-        self.err = err_bouguer
+        self.err = err_bouguer / self.data_calspec
 
         # self.data = filter_detect_lines(self.lambdas, self.data, self.plot_filt, self.save_filter)
 
@@ -138,9 +157,9 @@ class TransmissionInstrumentale:
             self.slope2, self.ord2, self.err_slope2, self.err_ord2, self.A2, self.A2_err = spectrumrangeairmass.bouguer_line_order2()
             self.data_bouguer = np.exp(self.ord2)
             err_bouguer = self.err_ord2 * self.data_bouguer
-            self.data_order2 = self.data_bouguer
+            self.data_order2 = self.data_bouguer / self.data_calspec
             self.lambdas = self.new_lambda
-            self.err_order2 = err_bouguer
+            self.err_order2 = err_bouguer / self.data_calspec
             # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
@@ -158,16 +177,17 @@ class TransmissionInstrumentale:
             self.ord2, self.err_order2 = spectrumrangeairmass.megafit_emcee()
             print(self.ord2)
             print(len(self.ord2))
-            self.data_order2 = self.ord2
+            self.data_order2 = self.ord2 / self.data_calspec
+            self.err_order2 = self.err_order2 / self.data_calspec
             self.lambdas = self.new_lambda
 
             # self.data_order2 = filter_detect_lines(self.lambdas, self.data_order2, self.plot_filt, self.save_filter)
             Data = sp.interpolate.interp1d(self.lambdas, self.data_order2, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
-            """
-            Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.data_bouguer, kind="linear", bounds_error=False,
+
+            Data_bouguer = sp.interpolate.interp1d(self.lambdas, self.ord2, kind="linear", bounds_error=False,
                                                    fill_value="extrapolate")
-            """
+
             Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
                                           fill_value="extrapolate")
 
@@ -176,7 +196,7 @@ class TransmissionInstrumentale:
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
-            # self.data_order2 = sp.signal.savgol_filter(self.data_order2, 111, 2)
+            self.data_order2[101:-101] = sp.signal.savgol_filter(self.data_order2[101:-101], 51, 2)
 
 
 def plot_atmosphere(Throughput, save_atmo, sim):
@@ -334,6 +354,8 @@ def plot_spec_target(Throughput, save_target):
     plt.grid(True)
     plt.legend(prop={'size': 12}, loc='upper right')
 
+    #np.save(os.path.join(parameters.THROUGHPUT_DIR, 'data_calspec_calib_v6.7_megafit'),Throughput.data_bouguer / (Throughput.data_disp * Throughput.data_tel))
+
     if save_target:
         if os.path.exists(parameters.OUTPUTS_TARGET):
             plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.png')
@@ -401,10 +423,11 @@ def plot_throughput_sim(Throughput, save_Throughput):
     if T.order2:
         NewErr_bis = T.err_order2 / (T.data_tel * T.data_disp) * 100
 
+    """
     ax[1].scatter(T.lambdas, Rep_sim_norm, c='black', marker='o')
     ax[1].errorbar(T.lambdas, Rep_sim_norm, xerr=None, yerr=NewErr, fmt='none', capsize=1,
                    ecolor='black', zorder=2, elinewidth=2)
-
+    """
     if T.order2:
         ax[1].scatter(T.lambdas, Rep_sim_norm_bis, c='red', marker='o')
         ax[1].errorbar(T.lambdas, Rep_sim_norm_bis, xerr=None, yerr=NewErr_bis, fmt='none', capsize=1,
@@ -417,12 +440,12 @@ def plot_throughput_sim(Throughput, save_Throughput):
 
     ax[1].grid(True)
 
-    ax[1].yaxis.set_ticks(range(int(min(Rep_sim_norm)) - 2, int(max(Rep_sim_norm)) + 4,
-                                (int(max(Rep_sim_norm)) + 6 - int(min(Rep_sim_norm))) // 8))
+    ax[1].yaxis.set_ticks(range(int(min(Rep_sim_norm_bis)) - 2, int(max(Rep_sim_norm_bis)) + 4,
+                                (int(max(Rep_sim_norm_bis)) + 6 - int(min(Rep_sim_norm_bis))) // 8))
 
-    ax[1].text(550, max(Rep_sim_norm) * 3 / 4, '$\sigma$= ' + str(X_2)[:4] + '%', color='black', fontsize=20)
+    ax[1].text(550, max(Rep_sim_norm_bis) * 3 / 4, '$\sigma$= ' + str(X_2)[:4] + '%', color='black', fontsize=20)
     if T.order2:
-        ax[1].text(850, max(Rep_sim_norm) * 3 / 4, '$\sigma$= ' + str(X_2_bis)[:4] + '%', color='red', fontsize=20)
+        ax[1].text(850, max(Rep_sim_norm_bis) * 3 / 4, '$\sigma$= ' + str(X_2_bis)[:4] + '%', color='red', fontsize=20)
     plt.subplots_adjust(wspace=0, hspace=0)
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM):
@@ -458,6 +481,37 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         ax2.errorbar(T.lambdas, T.data_tel, xerr=None, yerr=T.data_tel_err, fmt='none', capsize=1,
                      ecolor='blue', zorder=2, elinewidth=2)
 
+        x = 'throughput/20171006_RONCHI400_clear_45_median_tpt.txt'
+        a = np.loadtxt(x)
+        x = 'throughput/CBP_throughput.dat'
+        b = np.loadtxt(x)
+
+        def takePREMIER(elem):
+            return elem[0]
+
+        A = [[a.T[0][i], a.T[1][i]] for i in range(len(a.T[0]))]
+        A.sort(key=takePREMIER)
+        a.T[0] = [A[i][0] for i in range(len(A))]
+        a.T[1] = [A[i][1] for i in range(len(A))]
+
+        if a.T[0][0] < b.T[0][0]:
+            L = np.linspace(a.T[0][0] - 1, b.T[0][0], int(b.T[0][0] - a.T[0][0] + 1))
+            Y_L = [0.006] * int((b.T[0][0] - a.T[0][0] + 1))
+            X = np.concatenate((L, b.T[0]))
+            Z = np.concatenate((Y_L, b.T[1]))
+
+        if a.T[0][len(a.T[0]) - 1] > X[len(X) - 1]:
+            L = np.linspace(X[len(X) - 1], a.T[0][len(a.T[0]) - 1], int(a.T[0][len(a.T[0]) - 1] - X[len(X) - 1] + 1))
+            Y_L = [0.0021] * int((a.T[0][len(a.T[0]) - 1] - X[len(X) - 1] + 1))
+            M = np.concatenate((X, L))
+            N = np.concatenate((Z, Y_L))
+
+        interpolation = interp1d(M, N)
+        Y = interpolation(a.T[0])
+        Ynew = [a.T[1][i] / Y[i] for i in range(len(Y))]
+        ax2.scatter(a.T[0], Ynew / Ynew[int(len(Ynew) / 2)] * max(T.data_tel), c='purple', marker='.', label='T_inst CBP')
+
+
         ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
         ax2.set_ylabel("Transmission telescope", fontsize=22)
         ax2.set_title(
@@ -472,7 +526,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
             if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
                 plt.savefig(
                     parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.png')
-                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300'), 'w')
+                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300_prod6.7.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
                     fichier.write(
@@ -480,7 +534,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
                 fichier.close()
             else:
                 os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300.txt'), 'w')
+                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300_prod6.7.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
                     fichier.write(
@@ -506,12 +560,16 @@ def plot_throughput_reduc(Throughput, save_Throughput):
     ax2.errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue',
                  zorder=1,
                  elinewidth=2)
+    if T.disperseur == 'Ron400':
+        disp = np.loadtxt('throughput/ron400_banc.txt')
+        ax2.scatter(disp.T[0], disp.T[1], c='green', marker='.', label='Mesure sur banc')
 
     if T.order2:
         ax2.scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', marker='.', label='Tinst_Vincent_ordre2')
         ax2.errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel,
                      fmt='none', capsize=1, ecolor='red', zorder=1, elinewidth=2)
-
+        Tinst_order2 = T.data_order2 / T.data_tel
+        Tinst_order2_err = T.err_order2 / T.data_tel
     ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
     ax2.set_ylabel("Transmission disperseur", fontsize=22)
     ax2.set_title("Transmission instrumentale du, " + T.disperseur + ', version_' + parameters.PROD_NUM,
@@ -524,8 +582,29 @@ def plot_throughput_reduc(Throughput, save_Throughput):
 
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
+            plt.savefig(
+                parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
+            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ron400_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
+
+            for i in range(len(T.lambdas)):
+                fichier.write(
+                    str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
+            fichier.close()
+        else:
+            os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
+            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ron400_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
+
+            for i in range(len(T.lambdas)):
+                fichier.write(
+                    str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
+            fichier.close()
+            plt.savefig(
+                parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
+        """
+        if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
             plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
             plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM+ '.png')
+        """
     plt.show()
