@@ -63,7 +63,10 @@ class SpectrumAirmassFixed:
                 self.target = Line[1]
                 self.disperseur = Line[2]
                 self.airmass = float(Line[3])
-                self.psf_reg = float(Line[10])
+                try:
+                    self.psf_reg = float(Line[10])
+                except:
+                    self.psf_reg = 1
                 """
                 self.targetx = float(Line[4])
                 self.targetx = float(Line[4])
@@ -100,8 +103,10 @@ class SpectrumAirmassFixed:
                 lambdas.append(float(Line[2]))
                 data.append(float(Line[3]))
                 data_err.append(float(Line[4]))
-                lambdas_order2.append(float(Line[5]))
-
+                try:
+                    lambdas_order2.append(float(Line[5]))
+                except:
+                    lambdas_order2.append(float(Line[2])/2)
         self.lambdas = np.array(lambdas)
         self.data = np.array(data)
         self.err = np.array(data_err)
