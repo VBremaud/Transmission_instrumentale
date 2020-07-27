@@ -17,8 +17,8 @@ ________reduc_20170530_060_atmsim.fits
 
 ###________INPUT WITH A NEW PROD________###
 
-PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.5/data_30may17_A2=0.1"
-PROD_NUM = "6.5"
+PROD = "CTIODataJune2017_reduced_RG715_v2_prod6.4/data_30may17_A2=0"
+PROD_NUM = "6.4"
 
 
 ###________DIRECTORY PROD________###
@@ -39,7 +39,7 @@ version_6.5_order2 : simu with order2
 version_6.6
 
 CC Lyon:
-CTIODataJune2017_reduced_RG715_v2_prod6.7/data_30may17_A2=0.1 : version 6.5 
+CTIODataJune2017_reduced_RG715_v2_prod6.9/data_30may17_A2=0.1 : version 6.5 
 
 """
 ###________DIRECTORY THROUGHPUT________###
@@ -73,8 +73,8 @@ OUTPUTS_THROUGHPUT_REDUC = os.path.join(OUTPUTS_REDUC, "throughput/")
 DISPERSER = ['Ron400', 'Thor300', 'HoloPhP', 'HoloPhAg', 'HoloAmAg']
 
 ###________LAMBDA SCALE________###
-LAMBDA_MIN = 360
-LAMBDA_MAX = 1030
+LAMBDA_MIN = 370
+LAMBDA_MAX = 980
 BINWIDTHS = 5
 BIN = np.arange(LAMBDA_MIN, LAMBDA_MAX + BINWIDTHS, BINWIDTHS)
 NEW_LAMBDA= 0.5 * (BIN[1:] + BIN[:-1])

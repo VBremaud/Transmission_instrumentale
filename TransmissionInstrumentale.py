@@ -51,7 +51,7 @@ class TransmissionInstrumentale:
         self.file_calspec = prod[0]
         self.rep_tel_name = parameters.rep_tel_name
         self.rep_disp_ref = parameters.rep_disp_ref
-        self.rep_disp_name = os.path.join(parameters.THROUGHPUT_DIR, self.disperseur + '.txt')
+        self.rep_disp_name = os.path.join(parameters.THROUGHPUT_DIR, 'Thorlab.txt')#self.disperseur + '.txt')
         self.spec_calspec()
 
     def spec_calspec(self):
@@ -114,7 +114,7 @@ class TransmissionInstrumentale:
         disp = np.loadtxt(self.rep_disp_name)
         Data_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1], kind="linear", bounds_error=False,
                                             fill_value="extrapolate")
-        Err_disp = sp.interpolate.interp1d(disp.T[0], disp.T[2], kind="linear", bounds_error=False,
+        Err_disp = sp.interpolate.interp1d(disp.T[0], disp.T[1]/100, kind="linear", bounds_error=False,
                                            fill_value="extrapolate")
         tel = np.loadtxt(self.rep_tel_name)
         Data_tel = sp.interpolate.interp1d(tel.T[0], tel.T[1], kind="linear", bounds_error=False,
@@ -141,8 +141,8 @@ class TransmissionInstrumentale:
                                                fill_value="extrapolate")
         Err = sp.interpolate.interp1d(self.lambdas, self.err, kind="linear", bounds_error=False,
                                       fill_value="extrapolate")
-        #self.lambdas = self.new_lambda
-        self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
+        self.lambdas = self.new_lambda
+        #self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
 
         self.data_tel = Data_tel(self.lambdas)
         self.data_tel_err = Err_tel(self.lambdas)
@@ -153,6 +153,7 @@ class TransmissionInstrumentale:
         self.data_bouguer = Data_bouguer(self.lambdas)
         # self.data = sp.signal.savgol_filter(self.data, 111, 2)
 
+        #spectrumrangeairmass.archi_mega_fit()
         if self.order2 and not self.mega_fit:
             self.slope2, self.ord2, self.err_slope2, self.err_ord2, self.A2, self.A2_err = spectrumrangeairmass.bouguer_line_order2()
             self.data_bouguer = np.exp(self.ord2)
@@ -167,7 +168,7 @@ class TransmissionInstrumentale:
                                                    fill_value="extrapolate")
             Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
                                           fill_value="extrapolate")
-            self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
+            self.lambdas = self.new_lambda
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
@@ -191,16 +192,16 @@ class TransmissionInstrumentale:
             Err = sp.interpolate.interp1d(self.lambdas, self.err_order2, kind="linear", bounds_error=False,
                                           fill_value="extrapolate")
 
-            #self.lambdas = self.new_lambda
-            self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
+            self.lambdas = self.new_lambda
+            #self.lambdas = np.arange(self.lambda_min, self.lambda_max, 1)
             self.data_order2 = Data(self.lambdas)
             self.err_order2 = Err(self.lambdas)
             self.data_bouguer = Data_bouguer(self.lambdas)
-            self.data_order2[101:-101] = sp.signal.savgol_filter(self.data_order2[101:-101], 51, 2)
+            self.data_order2[21:-21] = sp.signal.savgol_filter(self.data_order2[21:-21], 11, 2)
 
 
 def plot_atmosphere(Throughput, save_atmo, sim):
-    fig = plt.figure(figsize=[15, 10])
+    fig = plt.figure(figsize=[12, 7])
     ax = fig.add_subplot(111)
 
     T = Throughput
@@ -219,8 +220,8 @@ def plot_atmosphere(Throughput, save_atmo, sim):
         print(popt[0], np.sqrt(pcov[0][0]))
         print(popt[1], np.sqrt(pcov[1][1]))
         print(popt[2], np.sqrt(pcov[2][2]))
-        c = atmgrid.simulate(*popt)
-        plt.plot(Lambda, np.exp(np.log(b(Lambda)) / 1.047), color='blue', label='transmission libradtran typique')
+        c = atmgrid.simulate(295,5.3,0.027)
+        #plt.plot(Lambda, np.exp(np.log(b(Lambda)) / 1.047), color='blue', label='transmission libradtran injectée')
     else:
         def fatmosphere(lambdas, ozone, eau, aerosol):
             return np.exp(np.log(atmgrid.simulate(ozone, eau, aerosol)(lambdas)) / 1.047)
@@ -231,52 +232,130 @@ def plot_atmosphere(Throughput, save_atmo, sim):
         print(popt[0], np.sqrt(pcov[0][0]))
         print(popt[1], np.sqrt(pcov[1][1]))
         print(popt[2], np.sqrt(pcov[2][2]))
-        c = atmgrid.simulate(*popt)
+        c = atmgrid.simulate(227,2.9,0.013)
+        d = atmgrid.simulate(225,2.8,0.012)
+        e = atmgrid.simulate(229,3.0,0.014)
 
-    plt.plot(Lambda, np.exp(np.log(c(Lambda)) / 1.047), color='black', label='transmission libradtran ajustée')
-    plt.plot(T.new_lambda, np.exp(T.slope), color='red', label='transmission atmosphérique droites bouguer')
+    plt.plot(Lambda, np.exp(np.log(b(Lambda)) / 1.047), color='blue', label='atmospheric transmission')
+
+    #plt.plot(Lambda, np.exp(np.log(c(Lambda)) / 1.047), color='blue', label='Atmospheric transmission fit')
+    #plt.plot(Lambda, np.exp(np.log(e(Lambda)) / 1.047), color='darkblue', linestyle='--')
+    """
+    plt.plot(T.new_lambda, np.exp(T.slope), color='red', label='Atmospheric transmission with ADR correction')
     plt.errorbar(T.new_lambda, np.exp(T.slope), xerr=None, yerr=T.err_slope * np.exp(T.slope), fmt='none', capsize=1,
                  ecolor='red', zorder=2, elinewidth=2)
     plt.fill_between(T.new_lambda, np.exp(T.slope) + T.err_slope * np.exp(T.slope),
                      np.exp(T.slope) - T.err_slope * np.exp(T.slope), color='red')
 
+    file_4_atm = "outputs/CTIODataJune2017_reduced_RG715_v2_prod6.3/data_30may17/reduc/atm/"
+    A = np.load(file_4_atm + 'atm_data, ' + T.disperseur + ', version_' + '6.3' + '.npy')
+    B = np.load(file_4_atm + 'atm_err, ' + T.disperseur + ', version_' + '6.3' + '.npy')
+    plt.plot(T.new_lambda, A, color='blue', label='Atmospheric transmission without ADR correction')
+    plt.errorbar(T.new_lambda, A, xerr=None, yerr=B, fmt='none', capsize=1,
+                 ecolor='blue', zorder=2, elinewidth=2)
+    plt.fill_between(T.new_lambda, A+B,
+                     A-B, color='blue')
+
+
+    np.save(parameters.OUTPUTS_ATM_REDUC + 'atm_data, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.npy',np.exp(T.slope))
+    np.save(parameters.OUTPUTS_ATM_REDUC + 'atm_err, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.npy',
+            T.err_slope * np.exp(T.slope))
+    """
+    """
     if T.order2:
-        plt.plot(T.new_lambda, np.exp(T.slope2), color='green', label='transmission atmosphérique correction ordre2')
+
+        plt.plot(T.new_lambda, np.exp(T.slope2), color='green', label='Atmospheric transmission Bouguer lines without order2')
         plt.errorbar(T.new_lambda, np.exp(T.slope2), xerr=None, yerr=T.err_slope2 * np.exp(T.slope2), fmt='none',
                      capsize=1,
                      ecolor='green', zorder=2, elinewidth=2)
         plt.fill_between(T.new_lambda, np.exp(T.slope2) + T.err_slope2 * np.exp(T.slope2),
                          np.exp(T.slope2) - T.err_slope2 * np.exp(T.slope2), color='green')
-
+    """
     if T.sim:
-        plt.title('Transmission atmosphérique, simulation, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
+        #plt.title('Transmission atmosphérique, simulation, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
+        #plt.title('Atmospheric transmission with Thor300 simulations',
+                  #fontsize=25)
+        plt.title('Example of an atmospheric transmission',fontsize=25)
     else:
-        plt.title('Transmission atmosphérique, données, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
+        #plt.title('Transmission atmosphérique, données, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
+        plt.title('Atmospheric transmission of the Thor300, ADR correction',
+                  fontsize=25)
+    ax2 = ax
+    plt.axis([370, 980, 0.38, 1.3])
+    ax2.annotate("", xy=(950, 0.9), xytext=(950, 1.1),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 6, 'headwidth': 15
+                             }, color='black')
+    ax2.annotate("", xy=(905, 0.99), xytext=(905, 1.1),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 6, 'headwidth': 15
+                             }, color='black')
 
-    ax.get_xaxis().set_tick_params(labelsize=17)
-    ax.get_yaxis().set_tick_params(labelsize=14)
+    ax2.text(890, 1.12, "$H_{2}O$ lines", color='black', fontsize=20)
+
+    ax2.axvline(385, 0.34, 1.18, linestyle='dotted', c='black')
+    ax2.axvline(490, 0.51, 1.18, linestyle='dotted', c='black')
+
+    ax2.text(410, 1.12, "aerosols", color='black', fontsize=20)
+
+    ax2.axvline(650, 0.58, 1.18, linestyle='dotted', c='black')
+    ax2.axvline(515, 0.53, 1.18, linestyle='dotted', c='black')
+
+    ax2.text(565, 1.12, "ozone", color='black', fontsize=20)
+
+    ax2.annotate("", xy=(764, 0.97), xytext=(764, 1.1),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 6, 'headwidth': 10
+                             }, color='black')
+
+    ax2.text(710, 1.12, "dioxygen line", color='black', fontsize=20)
+
+    ax2.annotate("", xy=(385, 1.13), xytext=(400, 1.13),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 1, 'headwidth': 10
+                             }, color='black')
+
+    ax2.annotate("", xy=(490, 1.13), xytext=(475, 1.13),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 1, 'headwidth': 10
+                             }, color='black')
+
+    ax2.annotate("", xy=(515, 1.13), xytext=(555, 1.13),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 1, 'headwidth': 10
+                             }, color='black')
+
+    ax2.annotate("", xy=(650, 1.13), xytext=(615, 1.13),
+                 arrowprops={'facecolor': 'black', 'edgecolor': 'black',
+                             'width': 1, 'headwidth': 10
+                             }, color='black')
+
+
+    ax.get_xaxis().set_tick_params(labelsize=18)
+    ax.get_yaxis().set_tick_params(labelsize=17)
+    plt.axis([370,980,0.38,1.3])
     plt.xlabel('$\lambda$ (nm)', fontsize=17)
-    plt.ylabel('Transmission atmosphérique', fontsize=15)
+    plt.ylabel('Atmospheric transmission', fontsize=17)
     plt.grid(True)
-    plt.legend(prop={'size': 15}, loc='lower right')
-
+    plt.legend(prop={'size': 16}, loc='lower right')
+    fig.tight_layout()
     if save_atmo:
         if T.sim:
             if os.path.exists(parameters.OUTPUTS_ATM_SIM):
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                    parameters.OUTPUTS_ATM_SIM + 'atm_simub, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
             else:
                 os.makedirs(parameters.OUTPUTS_ATM_SIM)
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_SIM + 'atm_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                    parameters.OUTPUTS_ATM_SIM + 'atm_simub, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
         else:
             if os.path.exists(parameters.OUTPUTS_ATM_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                    parameters.OUTPUTS_ATM_REDUC + 'atm_reducb, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
             else:
                 os.makedirs(parameters.OUTPUTS_ATM_REDUC)
                 plt.savefig(
-                    parameters.OUTPUTS_ATM_REDUC + 'atm_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                    parameters.OUTPUTS_ATM_REDUC + 'atm_reducb, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
 
     plt.show()
 
@@ -313,32 +392,33 @@ def plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer):
                          ecolor=(wavelength_to_rgb(T.new_lambda[i])), zorder=2, elinewidth=2)
 
     if T.sim:
-        plt.title('Droites de Bouguer, simulation, ' + T.disperseur + ', version_' + parameters.PROD_NUM,
-                  fontsize=18)
+        #plt.title('Droites de Bouguer, simulation, ' + T.disperseur + ', version_' + parameters.PROD_NUM,
+                  #fontsize=22)
+        plt.title("Bouguer lines with Thor300 simulations", fontsize=27)
     else:
         plt.title('Droites de Bouguer, données, ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
 
-    ax.get_xaxis().set_tick_params(labelsize=17)
-    ax.get_yaxis().set_tick_params(labelsize=14)
-    plt.xlabel('$\lambda$ (nm)', fontsize=17)
-    plt.ylabel('ln(flux)', fontsize=15)
+    ax.get_xaxis().set_tick_params(labelsize=22)
+    ax.get_yaxis().set_tick_params(labelsize=22)
+    plt.xlabel('airmass $z$', fontsize=23)
+    plt.ylabel('ln(flux)', fontsize=23)
     plt.grid(True)
-    plt.legend(prop={'size': 12}, loc='upper right')
+    plt.legend(prop={'size': 16}, loc='upper right')
 
     if save_bouguer:
         if T.sim:
             if os.path.exists(parameters.OUTPUTS_BOUGUER_SIM):
-                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
             else:
                 os.makedirs(parameters.OUTPUTS_BOUGUER_SIM)
-                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_SIM + 'bouguer_simu, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
         else:
             if os.path.exists(parameters.OUTPUTS_BOUGUER_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                    parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
             else:
                 os.makedirs(parameters.OUTPUTS_BOUGUER_REDUC)
-                plt.savefig(parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+                plt.savefig(parameters.OUTPUTS_BOUGUER_REDUC + 'bouguer_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
     plt.show()
 
 def plot_spec_target(Throughput, save_target):
@@ -358,10 +438,10 @@ def plot_spec_target(Throughput, save_target):
 
     if save_target:
         if os.path.exists(parameters.OUTPUTS_TARGET):
-            plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.png')
+            plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.pdf')
         else:
             os.makedirs(parameters.OUTPUTS_TARGET)
-            plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.png')
+            plt.savefig(parameters.OUTPUTS_TARGET + 'CALSPEC, ' + Throughput.target + '.pdf')
 
     plt.show()
 
@@ -369,31 +449,36 @@ def plot_throughput_sim(Throughput, save_Throughput):
     T = Throughput
 
     gs_kw = dict(height_ratios=[4, 1], width_ratios=[1])
-    fig, ax = plt.subplots(2, 1, sharex="all", figsize=[14, 12], constrained_layout=True, gridspec_kw=gs_kw)
+    fig, ax = plt.subplots(2, 1, sharex="all", figsize=[15, 8], constrained_layout=True, gridspec_kw=gs_kw)
 
-    ax[0].scatter(T.lambdas, T.data / T.data_tel, c='black', label='T_disp Vincent', s=15, zorder=2)
+    ax[0].scatter(T.lambdas, T.data / T.data_tel, c='black', label='Bouguer lines', s=15, zorder=2)
     ax[0].errorbar(T.lambdas, T.data / T.data_tel, xerr=None, yerr=T.err / T.data_tel, fmt='none', capsize=1,
                    ecolor='black', zorder=2,
                    elinewidth=2)
 
-    ax[0].scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='T_disp exacte')
+    ax[0].scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='Truth transmission')
     ax[0].errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue',
                    zorder=1,
                    elinewidth=2)
 
     if T.order2:
-        ax[0].scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', label='T_disp Vincent ordre2', s=15, zorder=2)
+        """
+        it atm + Tinst, MCMC
+        """
+        ax[0].scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', label='fit photometric night', marker='x',s=15, zorder=2)
         ax[0].errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel, fmt='none',
                        capsize=1,
                        ecolor='red', zorder=2, elinewidth=2)
 
-    ax[0].set_xlabel('$\lambda$ (nm)', fontsize=20)
-    ax[0].set_ylabel('Transmission instrumentale', fontsize=20)
-    ax[0].set_title('Transmission du ' + T.disperseur + ', version_' + parameters.PROD_NUM, fontsize=18)
-    ax[0].get_xaxis().set_tick_params(labelsize=17)
-    ax[0].get_yaxis().set_tick_params(labelsize=14)
+    ax[0].set_xlabel('$\lambda$ [nm]]', fontsize=22)
+    ax[0].set_ylabel('Grating transmission', fontsize=22)
+    #ax[0].set_title('Transmission du ' + T.disperseur + " sur des simulations avec 10% d'ordre 2", fontsize = 18)#, version_' + parameters.PROD_NUM, fontsize=18)
+    ax[0].set_title('Grating transmission of the Thor300 with simulations and order 2',
+                    fontsize=24)  # , version_' + parameters.PROD_NUM, fontsize=18)
+    ax[0].get_xaxis().set_tick_params(labelsize=19)
+    ax[0].get_yaxis().set_tick_params(labelsize=16)
     ax[0].grid(True)
-    ax[0].legend(prop={'size': 22}, loc='upper right')
+    ax[0].legend(prop={'size': 20}, loc='upper right')
 
     """On cherche les points de la reponse ideale (celle de Sylvie) les plus proches des longueurs d'ondes de la rep
     simulee"""
@@ -423,36 +508,39 @@ def plot_throughput_sim(Throughput, save_Throughput):
     if T.order2:
         NewErr_bis = T.err_order2 / (T.data_tel * T.data_disp) * 100
 
-    """
+
     ax[1].scatter(T.lambdas, Rep_sim_norm, c='black', marker='o')
     ax[1].errorbar(T.lambdas, Rep_sim_norm, xerr=None, yerr=NewErr, fmt='none', capsize=1,
                    ecolor='black', zorder=2, elinewidth=2)
-    """
+
     if T.order2:
-        ax[1].scatter(T.lambdas, Rep_sim_norm_bis, c='red', marker='o')
+        ax[1].scatter(T.lambdas, Rep_sim_norm_bis, c='red', marker='x')
         ax[1].errorbar(T.lambdas, Rep_sim_norm_bis, xerr=None, yerr=NewErr_bis, fmt='none', capsize=1,
                        ecolor='red', zorder=2, elinewidth=2)
 
-    ax[1].set_xlabel('$\lambda$ (nm)', fontsize=17)
-    ax[1].set_ylabel('Ecart relatif (%)', fontsize=15)
-    ax[1].get_xaxis().set_tick_params(labelsize=18)
-    ax[1].get_yaxis().set_tick_params(labelsize=10)
+    ax[1].set_xlabel('$\lambda$ [nm]', fontsize=22)
+    ax[1].set_ylabel('Residuals [%]', fontsize=16)
+    ax[1].get_xaxis().set_tick_params(labelsize=19)
+    ax[1].get_yaxis().set_tick_params(labelsize=11)
 
     ax[1].grid(True)
-
+    """
     ax[1].yaxis.set_ticks(range(int(min(Rep_sim_norm_bis)) - 2, int(max(Rep_sim_norm_bis)) + 4,
                                 (int(max(Rep_sim_norm_bis)) + 6 - int(min(Rep_sim_norm_bis))) // 8))
-
+    """
     ax[1].text(550, max(Rep_sim_norm_bis) * 3 / 4, '$\sigma$= ' + str(X_2)[:4] + '%', color='black', fontsize=20)
     if T.order2:
         ax[1].text(850, max(Rep_sim_norm_bis) * 3 / 4, '$\sigma$= ' + str(X_2_bis)[:4] + '%', color='red', fontsize=20)
+
+    fig.tight_layout()
+
     plt.subplots_adjust(wspace=0, hspace=0)
     if save_Throughput:
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM):
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_simb, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_SIM)
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_simb, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
 
     plt.show()
 
@@ -468,16 +556,18 @@ def plot_throughput_reduc(Throughput, save_Throughput):
                                                fill_value="extrapolate")(T.lambdas)
 
         Tinst = sp.signal.savgol_filter(T.data / thorlab_data, 81, 3)
-        ax2.scatter(T.lambdas, Tinst, c='black', label='rep tel')
+        ax2.scatter(T.lambdas, Tinst, c='black', label='Droites de Bouguer')
         ax2.errorbar(T.lambdas, Tinst, xerr=None, yerr=T.err / thorlab_data, fmt='none', capsize=1,
                      ecolor='black', zorder=2, elinewidth=2)
         if T.order2:
-            Tinst_order2 = sp.signal.savgol_filter(T.data_order2 / thorlab_data, 81, 3)
-            Tinst_order2_err = sp.signal.savgol_filter(T.err_order2 / thorlab_data, 81, 3)
-            ax2.scatter(T.lambdas, Tinst_order2, c='red', label='rep tel en enlevant ordre2')
+            Tinst_order2 = sp.signal.savgol_filter(T.data_order2 / thorlab_data, 17, 3)
+            Tinst_order2_err = sp.signal.savgol_filter(T.err_order2 / thorlab_data, 17, 3)
+            #Tinst_order2 = T.data_order2 / thorlab_data
+            #Tinst_order2_err = T.err_order2 / thorlab_data
+            ax2.scatter(T.lambdas, Tinst_order2, c='red', label='Tinst_Mega_fit')
             ax2.errorbar(T.lambdas, Tinst_order2, xerr=None, yerr=Tinst_order2_err, fmt='none', capsize=1,
                          ecolor='red', zorder=2, elinewidth=2)
-        ax2.scatter(T.lambdas, T.data_tel, c='blue', label='rep CTIO Sylvie')
+        ax2.scatter(T.lambdas, T.data_tel, c='blue', label='Tinst_prod6.7_basethor300')
         ax2.errorbar(T.lambdas, T.data_tel, xerr=None, yerr=T.data_tel_err, fmt='none', capsize=1,
                      ecolor='blue', zorder=2, elinewidth=2)
 
@@ -525,8 +615,8 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         if save_Throughput:
             if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
                 plt.savefig(
-                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.png')
-                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300_prod6.7.txt'), 'w')
+                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.pdf')
+                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_thrpoughput_basethor300_prod6.9_new.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
                     fichier.write(
@@ -534,20 +624,20 @@ def plot_throughput_reduc(Throughput, save_Throughput):
                 fichier.close()
             else:
                 os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300_prod6.7.txt'), 'w')
+                fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ctio_throughput_basethor300_prod6.9_new.txt'), 'w')
 
                 for i in range(len(T.lambdas)):
                     fichier.write(
                         str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
                 fichier.close()
                 plt.savefig(
-                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.png')
+                    parameters.OUTPUTS_THROUGHPUT_REDUC + 'ctio_throughput, version_' + parameters.PROD_NUM + '.pdf')
         plt.show()
 
-    fig = plt.figure(figsize=[15, 10])
+    fig = plt.figure(figsize=[12, 7])
     ax2 = fig.add_subplot(111)
 
-    ax2.scatter(T.lambdas, T.data / T.data_tel, c='black', marker='.', label='Tinst_Vincent')
+    ax2.scatter(T.lambdas, T.data / T.data_tel, c='black', marker='.', label='Bouguer lines')
     ax2.errorbar(T.lambdas, T.data / T.data_tel, xerr=None, yerr=T.err / T.data_tel, fmt='none', capsize=1,
                  ecolor='black', zorder=1, elinewidth=2)
 
@@ -555,57 +645,65 @@ def plot_throughput_reduc(Throughput, save_Throughput):
         T.data_disp = thorlab_data
         T.data_disp_err = thorlab_data * 0.01
         ax2.scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='Banc_LPNHE')
-    else:
-        ax2.scatter(T.lambdas, T.data_disp, c='deepskyblue', marker='.', label='Tinst_Sylvie')
-    ax2.errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1, ecolor='deepskyblue',
-                 zorder=1,
-                 elinewidth=2)
+        ax2.errorbar(T.lambdas, T.data_disp, xerr=None, yerr=T.data_disp_err, fmt='none', capsize=1,
+                     ecolor='deepskyblue',
+                     zorder=1,
+                     elinewidth=2)
+
     if T.disperseur == 'Ron400':
         disp = np.loadtxt('throughput/ron400_banc.txt')
         ax2.scatter(disp.T[0], disp.T[1], c='green', marker='.', label='Mesure sur banc')
 
     if T.order2:
-        ax2.scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', marker='.', label='Tinst_Vincent_ordre2')
+        disp = np.loadtxt('throughput/holoamag_banc.txt')
+        ax2.scatter(disp.T[0], disp.T[1], c='blue', marker='x', label='Measurement on optical test bench')
+        ax2.errorbar(disp.T[0], disp.T[1], xerr=None, yerr=disp.T[2],
+                     fmt='none', capsize=1, ecolor='blue', zorder=1, elinewidth=2)
+        ax2.scatter(T.lambdas, T.data_order2 / T.data_tel, c='red', marker='.', label='Photometric_night_fit')
         ax2.errorbar(T.lambdas, T.data_order2 / T.data_tel, xerr=None, yerr=T.err_order2 / T.data_tel,
                      fmt='none', capsize=1, ecolor='red', zorder=1, elinewidth=2)
         Tinst_order2 = T.data_order2 / T.data_tel
         Tinst_order2_err = T.err_order2 / T.data_tel
-    ax2.set_xlabel('$\lambda$ (nm)', fontsize=24)
-    ax2.set_ylabel("Transmission disperseur", fontsize=22)
-    ax2.set_title("Transmission instrumentale du, " + T.disperseur + ', version_' + parameters.PROD_NUM,
-                  fontsize=22)
-    ax2.get_xaxis().set_tick_params(labelsize=20)
-    ax2.get_yaxis().set_tick_params(labelsize=20)
-    ax2.legend(prop={'size': 17}, loc='upper right')
+    ax2.set_xlabel('$\lambda$ [nm]', fontsize=22)
+    ax2.set_ylabel("Grating transmission", fontsize=22)
+    ax2.set_title("Instrument Transmission of the Thor300",fontsize=24)# + T.disperseur + ', version_' + parameters.PROD_NUM,
+                  #fontsize=26)
+    ax2.get_xaxis().set_tick_params(labelsize=18)
+    ax2.get_yaxis().set_tick_params(labelsize=18)
+    ax2.legend(prop={'size': 15}, loc='upper left')
     plt.grid(True)
     fig.tight_layout()
 
     if save_Throughput:
-        """
+
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
             plt.savefig(
-                parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
-            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ron400_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
+                parameters.OUTPUTS_THROUGHPUT_REDUC + 'HoloAmAg_basectiothor300b, version_' + parameters.PROD_NUM + '.pdf')
+            """
+            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'HoloAmAg_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
 
             for i in range(len(T.lambdas)):
                 fichier.write(
                     str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
             fichier.close()
+            """
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'ron400_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
+            """
+            fichier = open(os.path.join(parameters.THROUGHPUT_DIR, 'HoloAmAg_basectiothor300, version_' + parameters.PROD_NUM +'.txt'), 'w')
 
             for i in range(len(T.lambdas)):
                 fichier.write(
                     str(T.lambdas[i]) + '\t' + str(Tinst_order2[i]) + '\t' + str(Tinst_order2_err[i]) + '\n')
             fichier.close()
+            """
             plt.savefig(
-                parameters.OUTPUTS_THROUGHPUT_REDUC + 'ron400_basectiothor300, version_' + parameters.PROD_NUM + '.png')
+                parameters.OUTPUTS_THROUGHPUT_REDUC + 'HoloAmAg_basectiothor300b, version_' + parameters.PROD_NUM + '.pdf')
         """
         if os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC):
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.png')
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
         else:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
-            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM+ '.png')
-
+            plt.savefig(parameters.OUTPUTS_THROUGHPUT_REDUC + 'throughput_reduc, ' + T.disperseur + ', version_' + parameters.PROD_NUM+ '.pdf')
+        """
     plt.show()

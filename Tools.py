@@ -10,6 +10,7 @@ from TransmissionInstrumentale import *
 def convert_from_fits_to_txt(prod_name, prod_txt):
     to_convert_list = []
     Lsimutxt = glob.glob(prod_txt + "/sim*spectrum.txt")
+    print(len(Lsimutxt))
     Lreductxt = glob.glob(prod_txt + "/reduc*spectrum.txt")
     Lsimufits = glob.glob(prod_name + "/sim*spectrum.fits")
     Lreducfits = glob.glob(prod_name + "/reduc*spectrum.fits")
@@ -22,7 +23,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
     Lreductxt = [i for i in Lreductxt if i not in Ldefaut]
     Lsimufits = [i for i in Lsimufits if i not in Ldefaut]
     Lreducfits = [i for i in Lreducfits if i not in Ldefaut]
-
+    print(len(Lsimutxt),len(Lsimufits),len(Lreductxt), len(Lreducfits))
     if len(Lsimutxt) != len(Lsimufits) or len(Lreductxt) != len(Lreducfits):
         for file in Lsimufits:
             tag = file.split('/')[-1]
@@ -47,15 +48,16 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
             ROTANGLE = s.header["ROTANGLE"]
             psf_transverse = s.chromatic_psf.table['fwhm']
             PARANGLE = s.header["PARANGLE"]
-            PSF_REG = s.header['PSF_REG']
+            #PSF_REG = s.header['PSF_REG']
 
             x0 = [TARGETX, TARGETY]
+            """
             disperser = s.disperser
             distance = disperser.grating_lambda_to_pixel(s.lambdas, x0=x0, order=1)
             distance += adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             distance -= adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             lambdas_order2 = disperser.grating_pixel_to_lambda(distance, x0=x0, order=2)
-
+            """
             print(to_convert_list[i][:len(to_convert_list[i]) - 5])
             disperseur = s.disperser_label
             star = s.header['TARGET']
@@ -75,18 +77,18 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
                 fichier = open(os.path.join(prod_txt, tag.replace('fits', 'txt')), 'w')
                 fichier.write('#' + '\t' + star + '\t' + disperseur + '\t' + str(airmass) + '\t' + str(
                     TARGETX) + '\t' + str(TARGETY) + '\t' + str(D2CCD) + '\t' + str(PIXSHIFT) + '\t' + str(
-                    ROTANGLE) + '\t' + str(PARANGLE) + '\t' + str(PSF_REG) + '\n')
+                    ROTANGLE) + '\t' + str(PARANGLE) + '\t' + str(PARANGLE) + '\n')
                 for j in range(len(lambda_reel)):
                     if len(lambda_obs) > j:
                         if len(psf_transverse) > j:
                             fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\t' + str(
                                 lambda_obs[j]) + '\t' + str(intensite_obs[j]) + '\t' + str(
-                                intensite_err[j]) + '\t' + str(lambdas_order2[j]) + '\t' + str(
-                                psf_transverse[j]) + '\n')
+                                intensite_err[j]) + '\n')#'\t' + str(lambdas_order2[j]) + '\t' + str(
+                                #psf_transverse[j]) + '\n')
                         else:
                             fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\t' + str(
                                 lambda_obs[j]) + '\t' + str(intensite_obs[j]) + '\t' + str(
-                                intensite_err[j]) + '\t' + str(lambdas_order2[j]) + '\n')
+                                intensite_err[j]) + '\n' )#''\t' + str(lambdas_order2[j]) + '\n')
 
                     else:
                         fichier.write(str(lambda_reel[j]) + '\t' + str(intensite_reel[j]) + '\n')
