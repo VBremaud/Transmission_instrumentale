@@ -10,7 +10,7 @@ import scipy as sp
 
 class SpectrumAirmassFixed:
 
-    def __init__(self, file_name=""):
+    def __init__(self, file_name = ""):
         """Class to load a spectrum saved in a txt file.
 
         Parameters
@@ -43,30 +43,27 @@ class SpectrumAirmassFixed:
         self.lambda_min = parameters.LAMBDA_MIN
         self.lambda_max = parameters.LAMBDA_MAX
         self.Bin = parameters.BIN
-        self.cov = np.load(file_name.replace('.txt', '.npy'))
+
         if file_name != "":
             self.file_name = file_name
+            self.cov = np.load(file_name.replace('.txt', '.npy'))
             self.tag = file_name.split('/')[-1]
             self.load_spec_header(file_name)
-            self.load_spec_data()
+            self.load_spec_data(file_name)
 
     def load_spec_header(self, input_file_name):
         """Load the header from the spectrum file.
 
         """
         if os.path.isfile(input_file_name) and input_file_name[-3:] == 'txt':
-
             spec = open(input_file_name, 'r')
-
             for line in spec:
                 Line = line.split()
                 self.target = Line[1]
                 self.disperseur = Line[2]
                 self.airmass = float(Line[3])
-                try:
-                    self.psf_reg = float(Line[10])
-                except:
-                    self.psf_reg = 1
+                self.psf_reg = float(Line[10])
+
                 """
                 self.targetx = float(Line[4])
                 self.targetx = float(Line[4])
@@ -77,7 +74,6 @@ class SpectrumAirmassFixed:
                 self.PARANGLE = float(Line[9])
                 """
                 break
-
             spec.close()
 
         else:
@@ -87,11 +83,11 @@ class SpectrumAirmassFixed:
             else:
                 raise FileNotFoundError(f'\n\tSpectrum file {input_file_name} not found')
 
-    def load_spec_data(self):
+    def load_spec_data(self, input_file_name):
         """Load the data from the spectrum file.
 
         """
-        spec = open(self.file_name, 'r')
+        spec = open(input_file_name, 'r')
         lambdas = []
         data = []
         data_err = []
@@ -103,10 +99,8 @@ class SpectrumAirmassFixed:
                 lambdas.append(float(Line[2]))
                 data.append(float(Line[3]))
                 data_err.append(float(Line[4]))
-                try:
-                    lambdas_order2.append(float(Line[5]))
-                except:
-                    lambdas_order2.append(float(Line[2])/2)
+                lambdas_order2.append(float(Line[5]))
+
         self.lambdas = np.array(lambdas)
         self.data = np.array(data)
         self.err = np.array(data_err)
@@ -117,10 +111,12 @@ class SpectrumAirmassFixed:
 
         Returns
         -------
-        fluxlum_Binobs: array_like
+        fluxlum_Binobs: array_like (size N, number of bins)
             Array of the spectrum in FLAM (1D).
-        fluxlumBin_err: array_like
+        fluxlumBin_err: array_like (size N)
             Array of the spectrum error in FLAM (1D).
+        cov_bin: array_like (size N X N)
+            Array of the covariance matrix of fluxlum_Binobs
 
         Examples
         --------
@@ -147,12 +143,8 @@ class SpectrumAirmassFixed:
             JMIN[v] = int(jmin)
             JMAX[v] = int(jmax)
 
-        #print(JMIN,JMAX)
         for v in range(len(self.Bin) - 1):
             for k in range(len(self.Bin) - 1):
-                #print(self.cov.shape)
-                #print(JMIN[v],JMIN[k],JMAX[v],JMAX[k])
-                #print(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])
                 if JMAX[v] != JMIN[v] and JMAX[k] != JMIN[k]:
                     S = np.sum(self.cov[JMIN[v]:JMAX[v],JMIN[k]:JMAX[k]])/((JMAX[v]-JMIN[v])*(JMAX[k]-JMIN[k]))
                 else:
@@ -172,7 +164,7 @@ def plot_spectrum(s):
     plt.errorbar(s.lambdas, s.data, xerr=None, yerr=s.err, fmt='none', capsize=1, ecolor='black', zorder=2,
                  elinewidth=2)
     plt.xlabel('$\lambda$ (nm)', fontsize=13)
-    plt.ylabel('erg/s/cm2/nm', fontsize=13)
+    plt.ylabel('ADU', fontsize=13)
     plt.title('spectra: ' + s.tag[:-13] + ' with version_' + parameters.PROD_NUM +' of ' + s.target, fontsize=16)
     plt.grid(True)
     plt.show()
