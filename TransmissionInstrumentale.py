@@ -4,7 +4,6 @@ from scipy import signal  # filtre savgol pour enlever le bruit
 from scipy.interpolate import interp1d  # interpolation
 from spectractor.tools import wavelength_to_rgb  # couleurs des longueurs d'ondes
 from SpectrumRangeAirmass import *
-from Filters import *
 
 class TransmissionInstrumentale:
 
