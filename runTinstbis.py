@@ -1,4 +1,4 @@
-from Tools import *
+from Toolsbis import *
 from argparse import ArgumentParser
 
 parser = ArgumentParser()
@@ -19,7 +19,7 @@ prod_txt = parameters.PROD_TXT
 prod_name = parameters.PROD_NAME
 
 if disperser is not None:
-    extract_throughput(prod_txt, args.sim, disperser, glob.glob(prod_txt + "/sim*spectrum.txt"),
+    extract_throughput(prod_name, prod_txt, args.sim, disperser, glob.glob(prod_txt + "/sim*spectrum.txt"),
                    glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_target = False, plot_atmo = True, plot_Throughput = True,
                        save_atmo = True, save_Throughput = False)
 
