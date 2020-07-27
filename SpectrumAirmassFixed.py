@@ -1,12 +1,12 @@
 # coding: utf8
 
-import os  # gestion de fichiers
-import matplotlib.pyplot as plt  # affichage
-import numpy as np  # calculs utilisant C
+import os
+import matplotlib.pyplot as plt
+import numpy as np
 import parameters
-from scipy.interpolate import interp1d  # interpolation
-from scipy import integrate  # integation
-import scipy as sp  # calculs
+from scipy.interpolate import interp1d
+from scipy import integrate
+import scipy as sp
 
 class SpectrumAirmassFixed:
 
