@@ -13,15 +13,11 @@ parser.add_argument("-p", "--prod", type=str, dest="prod", default="all",
 
 args = parser.parse_args()
 
-disperser = args.disperser
+parameters.SIM = args.sim
+parameters.DISP = args.disperser
 
-prod_txt = parameters.PROD_TXT
-prod_name = parameters.PROD_NAME
-
-if disperser is not None:
-    extract_throughput(prod_name, prod_txt, args.sim, disperser, glob.glob(prod_txt + "/sim*spectrum.txt"),
-                   glob.glob(prod_txt + "/reduc*spectrum.txt"), plot_target = False, plot_atmo = True, plot_Throughput = True,
-                       save_atmo = True, save_Throughput = False)
+if args.disperser is not None:
+    extract_throughput()
 
 else:
-    prod_analyse(prod_name, prod_txt, data = args.prod)
+    prod_analyse(data = args.prod)

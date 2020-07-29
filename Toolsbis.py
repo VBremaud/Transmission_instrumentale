@@ -1,6 +1,5 @@
 # coding: utf8
 
-import glob
 from spectractor.extractor.spectrum import Spectrum  # importation des spectres
 import spectractor.parameters as parameterss
 from spectractor.simulation.adr import adr_calib
@@ -12,6 +11,13 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
     Lreductxt = glob.glob(prod_txt + "/reduc*spectrum.txt")
     Lsimufits = glob.glob(prod_name + "/sim*spectrum.fits")
     Lreducfits = glob.glob(prod_name + "/reduc*spectrum.fits")
+    Ldefaut = glob.glob(prod_name + "/*20170530_201_spectrum*") + glob.glob(
+        prod_name + "/*20170530_200_spectrum*") + glob.glob(prod_name + "/*20170530_205_spectrum*")
+
+    Lsimutxt = [i for i in Lsimutxt if i not in Ldefaut]
+    Lreductxt = [i for i in Lreductxt if i not in Ldefaut]
+    Lsimufits = [i for i in Lsimufits if i not in Ldefaut]
+    Lreducfits = [i for i in Lreducfits if i not in Ldefaut]
 
     if len(Lsimutxt) != len(Lsimufits) or len(Lreductxt) != len(Lreducfits):
         for file in Lsimufits:
@@ -90,47 +96,37 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
         return True, Lsimutxt, Lreductxt
 
 
-def extract_throughput(prod_name, prod_txt,sim, disperseur, prod_sim, prod_reduc, target="HD111980", order2=False,
-                       mega_fit=False,
-                       plot_atmo=False, plot_bouguer=False, plot_specs=False, plot_target=False, plot_filt=False,
-                       plot_Throughput=True,
-                       save_atmo=False, save_bouguer=False, save_target=False, save_Throughput=False,
-                       save_filter=False):
-    CFT = convert_from_fits_to_txt(prod_name, prod_txt)
+def extract_throughput():
+    CFT = convert_from_fits_to_txt(parameters.PROD_NAME, parameters.PROD_TXT)
     if CFT[0]:
-        spectrumrangeairmass = SpectrumRangeAirmass(prod_txt=prod_txt, sim=sim, disperseur=disperseur, target=target,
-                                                    plot_specs=plot_specs, prod_sim=prod_sim, prod_reduc=prod_reduc)
-        Throughput = TransmissionInstrumentale(prod_txt=prod_txt, sim=sim, disperseur=disperseur, target=target,
-                                               order2=order2, mega_fit=mega_fit, plot_filt=plot_filt,
-                                               save_filter=save_filter, prod=prod_sim)
+        spectrumrangeairmass = SpectrumRangeAirmass()
+        Throughput = TransmissionInstrumentale()
         Throughput.calcul_throughput(spectrumrangeairmass)
 
-        if plot_atmo:
-            plot_atmosphere(Throughput, save_atmo, sim)
-        if plot_bouguer:
-            plot_bouguer_lines(spectrumrangeairmass, Throughput, save_bouguer)
-        if plot_target:
-            plot_spec_target(Throughput, save_target)
-        if plot_Throughput:
-            if sim:
-                plot_throughput_sim(Throughput, save_Throughput)
+        if parameters.plot_atmo:
+            plot_atmosphere(Throughput, parameters.save_atmo, parameters.SIM)
+        if parameters.plot_target:
+            plot_spec_target(Throughput, parameters.save_target)
+        if parameters.plot_Throughput:
+            if parameters.SIM:
+                plot_throughput_sim(Throughput, parameters.save_Throughput)
             else:
-                plot_throughput_reduc(Throughput, save_Throughput)
+                plot_throughput_reduc(Throughput, parameters.save_Throughput)
     else:
         print('relaunch, convert_fits_to_txt step')
 
-def prod_analyse(prod_name, prod_txt, data='all'):
+def prod_analyse(prod_name, prod_txt, data = 'all'):
     CFT = convert_from_fits_to_txt(prod_name, prod_txt)
     if CFT[0]:
         if data == 'all' or data == 'sim':
             for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, True, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=True,
-                                   plot_target=False, save_atmo=True, save_bouguer=False, save_target=False,
-                                   save_Throughput=False, order2=True, mega_fit=False)
+                parameters.DISP = disperser
+                parameters.SIM = True
+                extract_throughput()
         if data == 'all' or data == 'reduc':
             for disperser in parameters.DISPERSER:
-                extract_throughput(prod_txt, False, disperser, CFT[1], CFT[2], plot_bouguer=False, plot_atmo=False,
-                                   plot_target=False, save_atmo=False, save_bouguer=False, save_target=False,
-                                   save_Throughput=False, order2=True, mega_fit=True)
+                parameters.DISP = disperser
+                parameters.SIM = False
+                extract_throughput()
     else:
         print('relaunch, convert_fits_to_txt step')
