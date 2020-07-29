@@ -12,16 +12,10 @@ parameters.py
 
 sps/ (vide)
 
-prod/
-
-  data_txt/ (vide)
+prod/data_txt/ (vide)
     
-  data/(lien symbolique vers CTIO...)
+prod/data/(lien symbolique vers CTIO...)
     
 throughput/
 
-tests/
-
-   data/ 
-
-       reduc_20170530_060_atmsim.fits
+tests/data/reduc_20170530_060_atmsim.fits
