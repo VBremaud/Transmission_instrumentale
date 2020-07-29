@@ -20,4 +20,4 @@ throughput/
 
 tests/data/reduc_20170530_060_atmsim.fits
 
-Pour lancer: runTinst.py (lance tout les fits d'une prod d'abord simu puis données), -D spécifie un disperseur, -s spécifie s'il s'agit d'une simulation. 
+Pour lancer: runTinst.py, -D spécifie un disperseur, -s spécifie s'il s'agit d'une simulation. 
