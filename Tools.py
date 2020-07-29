@@ -8,7 +8,8 @@ from TransmissionInstrumentale import *
 def convert_from_fits_to_txt():
     prod_name = parameters.PROD_NAME
     prod_txt = parameters.PROD_TXT
-    os.makedirs(prod_txt)
+    if os.path.exists(prod_txt) == False:
+        os.makedirs(prod_txt)
     to_convert_list = []
     Lsimutxt = glob.glob(prod_txt + "/sim*spectrum.txt")
     Lreductxt = glob.glob(prod_txt + "/reduc*spectrum.txt")
@@ -49,14 +50,13 @@ def convert_from_fits_to_txt():
             PSF_REG = s.header['PSF_REG']
 
             x0 = [TARGETX, TARGETY]
-
+            print(to_convert_list[i][:len(to_convert_list[i]) - 5])
             disperser = s.disperser
             distance = disperser.grating_lambda_to_pixel(s.lambdas, x0=x0, order=1)
             distance += adr_calib(s.lambdas, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             distance -= adr_calib(s.lambdas / 2, s.adr_params, parameterss.OBS_LATITUDE, lambda_ref=s.lambda_ref)
             lambdas_order2 = disperser.grating_pixel_to_lambda(distance, x0=x0, order=2)
 
-            print(to_convert_list[i][:len(to_convert_list[i]) - 5])
             disperseur = s.disperser_label
             star = s.header['TARGET']
             lambda_obs = s.lambdas
@@ -93,7 +93,7 @@ def convert_from_fits_to_txt():
                 fichier.close()
 
                 np.save(os.path.join(prod_txt, tag.replace('fits', 'npy')),cov)
-        return False
+        return False, Lsimutxt, Lreductxt
     else:
         print('already done')
         return True, Lsimutxt, Lreductxt

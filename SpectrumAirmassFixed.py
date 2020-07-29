@@ -49,7 +49,7 @@ class SpectrumAirmassFixed:
             self.cov = np.load(file_name.replace('.txt', '.npy'))
             self.tag = file_name.split('/')[-1]
             self.load_spec_header(file_name)
-            self.load_spec_data(file_name)
+            self.load_spec_data()
 
     def load_spec_header(self, input_file_name):
         """Load the header from the spectrum file.
@@ -83,11 +83,11 @@ class SpectrumAirmassFixed:
             else:
                 raise FileNotFoundError(f'\n\tSpectrum file {input_file_name} not found')
 
-    def load_spec_data(self, input_file_name):
+    def load_spec_data(self):
         """Load the data from the spectrum file.
 
         """
-        spec = open(input_file_name, 'r')
+        spec = open(self.file_name, 'r')
         lambdas = []
         data = []
         data_err = []
