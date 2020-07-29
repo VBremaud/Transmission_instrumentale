@@ -66,7 +66,6 @@ class SpectrumAirmassFixed:
 
                 """
                 self.targetx = float(Line[4])
-                self.targetx = float(Line[4])
                 self.targety = float(Line[5])
                 self.D2CCD = float(Line[6])
                 self.PIXSHIFT = float(Line[7])

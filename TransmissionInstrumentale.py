@@ -18,7 +18,6 @@ class TransmissionInstrumentale:
         self.sim = parameters.SIM
         self.lambdas_calspec = []
         self.data_calspec = []
-        self.data_calspec_mag = []
         self.data_order2 = []
         self.data_tel = []
         self.data_tel_err = []
@@ -63,7 +62,6 @@ class TransmissionInstrumentale:
             fluxlum_Binreel[v] = integrate.simps(Y, X, dx=1) / self.binwidths
 
         self.data_calspec = fluxlum_Binreel
-        self.data_calspec_mag = convert_from_flam_to_mag(fluxlum_Binreel, np.zeros(len(fluxlum_Binreel)))
 
     def calcul_throughput(self, spectrumrangeairmass):
         self.lambdas = self.new_lambda
@@ -216,7 +214,6 @@ def plot_throughput_sim(Throughput, save_Throughput):
     ax[1].scatter(T.lambdas, Rep_sim_norm_bis, c='red', marker='x')
     ax[1].errorbar(T.lambdas, Rep_sim_norm_bis, xerr=None, yerr=NewErr_bis, fmt='none', capsize=1,
                        ecolor='red', zorder=2, elinewidth=2)
-
     ax[1].set_xlabel('$\lambda$ [nm]', fontsize=22)
     ax[1].set_ylabel('Residuals [%]', fontsize=16)
     ax[1].get_xaxis().set_tick_params(labelsize=19)

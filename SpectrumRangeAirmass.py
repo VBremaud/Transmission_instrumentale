@@ -25,7 +25,7 @@ class SpectrumRangeAirmass:
         self.Bin = parameters.BIN
         self.sim = parameters.SIM
         self.list_spectrum = []
-        self.data_mag = []
+        self.data = []
         self.range_airmass = []
         self.err_mag = []
         self.order2 = []
@@ -54,7 +54,7 @@ class SpectrumRangeAirmass:
             self.list_spectrum = self.prod_reduc
 
         for j in range(len(self.Bin) - 1):
-            self.data_mag.append([])
+            self.data.append([])
             self.range_airmass.append([])
             self.err_mag.append([])
             self.order2.append([])
@@ -70,14 +70,13 @@ class SpectrumRangeAirmass:
             if s.target == self.target and s.disperseur == self.disperseur:
                 print(s.tag)
                 s.load_spec_data()
-                data_bin, err_bin, cov_bin = s.adapt_from_lambdas_to_bin()
-                data, err = convert_from_flam_to_mag(data_bin, err_bin)
+                data, err, cov_bin = s.adapt_from_lambdas_to_bin()
                 for v in range(len(self.Bin) - 1):
-                    self.data_mag[v].append(data[v])
+                    self.data[v].append(data[v])
                     self.range_airmass[v].append(s.airmass)
                     self.err_mag[v].append(err[v])
 
-                    data_conv = interp1d(self.new_lambda, data_bin, kind="linear",
+                    data_conv = interp1d(self.new_lambda, data, kind="linear",
                                          bounds_error=False, fill_value=(0, 0))
                     lambdas_conv = interp1d(s.lambdas, s.lambdas_order2, kind="linear",
                                             bounds_error=False, fill_value=(0, 0))
@@ -93,7 +92,7 @@ class SpectrumRangeAirmass:
                 if self.plot_specs:
                     plot_spectrum(s)
 
-        self.data_mag = np.array(self.data_mag)
+        self.data = np.array(self.data)
         self.range_airmass = np.array(self.range_airmass)
         self.err_mag = np.array(self.err_mag)
         self.names = np.array(self.names)
@@ -104,13 +103,13 @@ class SpectrumRangeAirmass:
     def check_outliers(self):
         indice = []
         outliers_detected = True
-        while outliers_detected == True:
+        while outliers_detected:
             for bin in range(len(self.Bin) - 1):
-                if np.exp(np.max(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin])))) > parameters.MULT_MAX:
-                    outliers = np.argmax(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin])))
+                if np.max(self.data[bin] / np.mean(self.data[bin])) > parameters.MULT_MAX or np.min(self.data[bin] / np.mean(self.data[bin])) < 1/parameters.MULT_MAX:
+                    outliers = np.argmax(np.abs(self.data[bin] - np.mean(self.data[bin])))
                     print("----> outliers detected:" + self.names[outliers].split('/')[
                         -1] + "\t" + ", multiplicative factor compared to avg value: " + str(
-                        np.exp(np.max(np.abs(self.data_mag[bin] - np.mean(self.data_mag[bin])))))[:3] +
+                        self.data[bin] / np.mean(self.data[bin])[:3]) +
                           " for " + str(self.Bin[bin]) + "-" + str(self.Bin[bin + 1]) + " nm \n")
                     s = SpectrumAirmassFixed(file_name=self.names[outliers])
                     pl = input("Do you want check this spectra (y/n)? ")
@@ -130,7 +129,7 @@ class SpectrumRangeAirmass:
                     if test[i] in parameters.REMOVE_SPECTRA:
                         self.names = np.delete(self.names, i)
                         self.cov = np.delete(self.cov, i, 0)
-                        self.data_mag = np.delete(self.data_mag, i, 1)
+                        self.data = np.delete(self.data, i, 1)
                         self.range_airmass = np.delete(self.range_airmass, i, 1)
                         self.err_mag = np.delete(self.err_mag, i, 1)
                         self.order2 = np.delete(self.order2, i, 1)
@@ -142,7 +141,7 @@ class SpectrumRangeAirmass:
                 outliers_detected = True
                 self.names = np.delete(self.names, indice[0])
                 self.cov = np.delete(self.cov, indice[0], 0)
-                self.data_mag = np.delete(self.data_mag, indice[0], 1)
+                self.data = np.delete(self.data, indice[0], 1)
                 self.range_airmass = np.delete(self.range_airmass, indice[0], 1)
                 self.err_mag = np.delete(self.err_mag, indice[0], 1)
                 self.order2 = np.delete(self.order2, indice[0], 1)
@@ -173,9 +172,9 @@ class SpectrumRangeAirmass:
             atm.append(atmgrid)
 
         def matrice_data():
-            y = (np.exp(self.data_mag) - self.order2)
+            y = self.data - self.order2
             nb_spectre = len(self.names)
-            nb_bin = len(self.data_mag)
+            nb_bin = len(self.data)
             D = np.zeros(nb_bin * nb_spectre)
             for j in range(nb_spectre):
                 D[j * nb_bin: (j + 1) * nb_bin] = y[:, j]
@@ -183,7 +182,7 @@ class SpectrumRangeAirmass:
 
         def Atm(atm, ozone, eau, aerosols):
             nb_spectre = len(self.names)
-            nb_bin = len(self.data_mag)
+            nb_bin = len(self.data)
             M = np.zeros((nb_spectre, nb_bin, nb_bin))
             M_p = np.zeros((nb_spectre * nb_bin, nb_bin))
             for j in range(nb_spectre):
@@ -199,7 +198,7 @@ class SpectrumRangeAirmass:
 
         def log_likelihood(params_fit, atm):
             nb_spectre = len(self.names)
-            nb_bin = len(self.data_mag)
+            nb_bin = len(self.data)
             ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
             D = matrice_data()
             M, M_p = Atm(atm, ozone, eau, aerosols)
@@ -286,7 +285,7 @@ class SpectrumRangeAirmass:
         self.err_params_atmo = np.array([d_ozone, d_eau, d_aerosols])
 
         nb_spectre = len(self.names)
-        nb_bin = len(self.data_mag)
+        nb_bin = len(self.data)
         M, M_p = Atm(atm, ozone, eau, aerosols)
         prod = np.zeros((nb_bin, nb_spectre * nb_bin))
         chi2 = 0
@@ -300,24 +299,23 @@ class SpectrumRangeAirmass:
 
         if self.disperseur == 'HoloAmAg' and self.sim == False:
             a, b = np.argmin(abs(self.new_lambda - 537.5)), np.argmin(abs(self.new_lambda - 542.5))
-            Tinst_err[a], Tinst_err[b] = 1e-16, 1e-16
+            Tinst_err[a], Tinst_err[b] = Tinst_err[a-1], Tinst_err[b+1]
 
-        A = COV @ prod @ D
         for spec in range(nb_spectre):
-            mat = D[spec * nb_bin: (spec + 1) * nb_bin] - M[spec] @ A
+            mat = D[spec * nb_bin: (spec + 1) * nb_bin] - M[spec] @ Tinst
             chi2 += mat @ self.INVCOV[spec] @ mat
         print(chi2 / (nb_spectre * nb_bin))
 
         err = np.zeros_like(D)
         for j in range(len(self.names)):
-            for i in range(len(self.data_mag)):
+            for i in range(len(self.data)):
                 if self.disperseur == 'HoloAmAg' and self.sim == False:
                     if self.new_lambda[i] == 537.5 or self.new_lambda[i] == 542.5:
-                        err[j * len(self.data_mag) + i] = 1
+                        err[j * len(self.data) + i] = 1
                     else:
-                        err[j * len(self.data_mag) + i] = np.sqrt(self.cov[j][i, i])
+                        err[j * len(self.data) + i] = np.sqrt(self.cov[j][i, i])
                 else:
-                    err[j * len(self.data_mag) + i] = np.sqrt(self.cov[j][i, i])
+                    err[j * len(self.data) + i] = np.sqrt(self.cov[j][i, i])
 
         model = M_p @ Tinst
         Err = (D - model) / err
@@ -353,7 +351,7 @@ class SpectrumRangeAirmass:
         axis_names = [str(i) for i in range(len(COV))]
         plot_correlation_matrix_simple(ax, compute_correlation_matrix(COV), axis_names, ipar=None)
 
-        rho = np.zeros((len(self.names), len(self.data_mag)))
+        rho = np.zeros((len(self.names), len(self.data)))
         test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
         test2 = test.copy()
         for Test in test:
@@ -368,7 +366,7 @@ class SpectrumRangeAirmass:
             k = np.argmin(abs(np.array(test) - test2[i]))
             axis_names_vert.append(str(test[k]))
             for j in range(rho.shape[1]):
-                rho[i, j] = Err[k * len(self.data_mag) + j]
+                rho[i, j] = Err[k * len(self.data) + j]
 
         vert = np.arange(rho.shape[0]).astype(int)
         hor = np.arange(rho.shape[1]).astype(int)
@@ -474,7 +472,7 @@ class SpectrumRangeAirmass:
             self.atm = atm
             ORDO = Ordonnee()
             def Atm(atm, ozone, eau, aerosols):
-                nb_bin = len(self.data_mag)
+                nb_bin = len(self.data)
                 Atmo = np.zeros(nb_bin)
                 Lambdas = np.arange(self.Bin[0], self.Bin[-1], 0.2)
                 Atm = atm.simulate(ozone, eau, aerosols)(Lambdas)
@@ -484,10 +482,10 @@ class SpectrumRangeAirmass:
                 return M
 
             def log_likelihood(params_fit):
-                nb_bin = len(self.data_mag)
+                nb_bin = len(self.data)
                 ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
                 M = Atm(self.atm,ozone, eau, aerosols)
-                D = np.exp(self.data_mag[:,spec]) - 0 * self.order2[:,spec]
+                D = self.data[:,spec] - self.order2[:,spec]
                 mat = D - M @ ORDO
 
                 chi2 = mat @ self.INVCOV[spec] @ mat
@@ -596,9 +594,3 @@ class SpectrumRangeAirmass:
         plt.savefig(chemin + 'Eau_fit, ' + self.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
 
         plt.show()
-
-def convert_from_flam_to_mag(data, err):
-    for i in range(len(data)):
-        if data[i] < 1e-15:
-            data[i] = 1e-15
-    return np.log(data), err / data
