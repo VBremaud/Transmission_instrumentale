@@ -4,9 +4,13 @@ import os
 ###________DIRECTORY STRUCTURE________###
 """
 Create a directory with:
-Tinst.py
+runTinst.py
+TransmissionInstrumentale.py
+SpectrumRangeAirmass.py
+SpectrumAirmassFixed.py
 parameters.py
 
+sps/
 prod/
 throughput/
 *outputs/* (create by runTinst.py)
@@ -79,8 +83,6 @@ COMPARISON_MD_SPECTRA = []
 COMPARISON_BANC = True
 
 
-
-
 ###_____________DO NOT CHANGE_____________###
 
 
@@ -94,11 +96,6 @@ PROD_NAME = os.path.join(PROD_DIRECTORY, "data/"+PROD)
 ###________DIRECTORY THROUGHPUT________###
 
 THROUGHPUT_DIR = os.path.join(mypath, "throughput/")
-rep_tel_name = os.path.join(THROUGHPUT_DIR, "ctio_throughput_basethor300_prod6.7.txt") #for ctio_telescope
-#"ctio_throughput_basethor300_prod6.7.txt"
-rep_disp_ref = os.path.join(THROUGHPUT_DIR, "Thorlab.txt")
-____rep_disp_name = os.path.join(THROUGHPUT_DIR, "disperseur")
-____file_tdisp_order2 = os.path.join(THROUGHPUT_DIR, "disperseur_order2")
 
 OUTPUTS = os.path.join(mypath, "outputs/")
 OUTPUTS_DIR = os.path.join(OUTPUTS, PROD)

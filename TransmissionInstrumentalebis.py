@@ -30,10 +30,9 @@ class TransmissionInstrumentale:
         self.err_order2 = []
         self.file_calspec = glob.glob(parameters.PROD_TXT + "/sim*spectrum.txt")[0]
         if self.sim:
-            self.rep_tel_name = parameters.THROUGHPUT_SIM
+            self.rep_tel_name = os.path.join(parameters.THROUGHPUT_DIR, parameters.THROUGHPUT_SIM)
         else:
-            self.rep_tel_name = parameters.THROUGHPUT_REDUC
-        self.rep_disp_ref = parameters.rep_disp_ref
+            self.rep_tel_name = os.path.join(parameters.THROUGHPUT_DIR, parameters.THROUGHPUT_REDUC)
         if self.sim:
             self.rep_disp_ref = os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_REF_SIM)
         elif self.disperseur == parameters.DISPERSER_REF:
@@ -314,7 +313,7 @@ def plot_throughput_reduc(Throughput, save_Throughput):
     ax2 = fig.add_subplot(111)
 
     if parameters.COMPARISON_BANC:
-        disp = np.loadtxt(parameters.DISPERSER_BANC)
+        disp = np.loadtxt(os.path.join(parameters.THROUGHPUT_DIR,parameters.DISPERSER_BANC))
         ax2.scatter(disp.T[0], disp.T[1], c='blue', marker='.', label='Measurement on optical test bench')
         ax2.errorbar(disp.T[0], disp.T[1], xerr=None, yerr=disp.T[2],
                      fmt='none', capsize=1, ecolor='blue', zorder=1, elinewidth=2)

@@ -5,7 +5,10 @@ import spectractor.parameters as parameterss
 from spectractor.simulation.adr import adr_calib
 from TransmissionInstrumentalebis import *
 
-def convert_from_fits_to_txt(prod_name, prod_txt):
+def convert_from_fits_to_txt():
+    prod_name = parameters.PROD_NAME
+    prod_txt = parameters.PROD_TXT
+    os.makedirs(prod_txt)
     to_convert_list = []
     Lsimutxt = glob.glob(prod_txt + "/sim*spectrum.txt")
     Lreductxt = glob.glob(prod_txt + "/reduc*spectrum.txt")
@@ -97,7 +100,7 @@ def convert_from_fits_to_txt(prod_name, prod_txt):
 
 
 def extract_throughput():
-    CFT = convert_from_fits_to_txt(parameters.PROD_NAME, parameters.PROD_TXT)
+    CFT = convert_from_fits_to_txt()
     if CFT[0]:
         spectrumrangeairmass = SpectrumRangeAirmass()
         Throughput = TransmissionInstrumentale()
@@ -115,8 +118,8 @@ def extract_throughput():
     else:
         print('relaunch, convert_fits_to_txt step')
 
-def prod_analyse(prod_name, prod_txt, data = 'all'):
-    CFT = convert_from_fits_to_txt(prod_name, prod_txt)
+def prod_analyse(data = 'all'):
+    CFT = convert_from_fits_to_txt()
     if CFT[0]:
         if data == 'all' or data == 'sim':
             for disperser in parameters.DISPERSER:
