@@ -1,6 +1,7 @@
 Structure des dossiers avant la première exécution: 
 
-runTinst.py \\
+runTinst.py 
+
 TransmissionInstrumentale.py
 SpectrumRangeAirmass.py
 SpectrumAirmassFixed.py
