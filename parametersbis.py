@@ -42,7 +42,9 @@ DISPERSER_REF = 'Thor300'
 DISPERSER_ORDER2_SIM = DISP+"_order2_sim.txt"
 DISPERSER_ORDER2 = DISP+"_order2.txt"
 DISPERSER_REF_BANC = DISPERSER_REF+"_banc.txt"
+DISPERSER_REF_SIM = DISP+"_sim.txt"
 DISPERSER_EXTRACTION = DISP+"_basectio"+DISPERSER_REF+", version_"+PROD_NUM+".txt"
+DISPERSER_BANC = DISP+"_banc.txt"
 
 ###________LAMBDA SCALE________###
 LAMBDA_MIN = 370
@@ -74,7 +76,7 @@ save_target = False
 target = "HD111980"
 REMOVE_SPECTRA = [58]
 COMPARISON_MD_SPECTRA = []
-
+COMPARISON_BANC = True
 
 
 

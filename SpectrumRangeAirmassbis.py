@@ -1,13 +1,12 @@
 # coding: utf8
 
 import glob
-from scipy.interpolate import interp1d  # interpolation
 import emcee
 import multiprocessing
 import sys
 from schwimmbad import MPIPool
 from SpectrumAirmassFixedbis import *
-from spectractor.simulation.simulator import AtmosphereGrid  # grille d'atmosphère
+from spectractor.simulation.simulator import AtmosphereGrid
 from numpy.linalg import inv
 import matplotlib.colors
 from scipy import integrate
@@ -35,8 +34,10 @@ class SpectrumRangeAirmass:
         self.INVCOV = []
         self.PSF_REG = []
         self.atm = None
+        self.params_atmo = np.zeros(3)
+        self.err_params_atmo = np.zeros(3)
         self.prod_sim = glob.glob(parameters.PROD_TXT + "/sim*spectrum.txt")
-        self.prod_reduc = glob.glob(parameters.PROD_TXT + "/sim*spectrum.txt")
+        self.prod_reduc = glob.glob(parameters.PROD_TXT + "/reduc*spectrum.txt")
         if self.sim:
             self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_ORDER2_SIM)
         else:
@@ -171,7 +172,7 @@ class SpectrumRangeAirmass:
                     'spectrum.txt', 'atmsim.fits'))
             atm.append(atmgrid)
 
-        def matrice_data(self):
+        def matrice_data():
             y = (np.exp(self.data_mag) - self.order2)
             nb_spectre = len(self.names)
             nb_bin = len(self.data_mag)
@@ -281,6 +282,8 @@ class SpectrumRangeAirmass:
         print(ozone, d_ozone)
         print(eau, d_eau)
         print(aerosols, d_aerosols)
+        self.params_atmo = np.array([ozone, eau, aerosols])
+        self.err_params_atmo = np.array([d_ozone, d_eau, d_aerosols])
 
         nb_spectre = len(self.names)
         nb_bin = len(self.data_mag)
@@ -295,7 +298,7 @@ class SpectrumRangeAirmass:
         Tinst = COV @ prod @ D
         Tinst_err = np.array([np.sqrt(COV[i,i]) for i in range(len(Tinst))])
 
-        if self.disperseur == 'HoloAmAg' and self.sim == True:
+        if self.disperseur == 'HoloAmAg' and self.sim == False:
             a, b = np.argmin(abs(self.new_lambda - 537.5)), np.argmin(abs(self.new_lambda - 542.5))
             Tinst_err[a], Tinst_err[b] = 1e-16, 1e-16
 
@@ -393,6 +396,9 @@ class SpectrumRangeAirmass:
         cbar.ax.tick_params(labelsize=13)
         plt.gcf().tight_layout()
         fig.tight_layout()
+        if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM) == False or os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC) == False:
+            os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
+            os.makedirs(parameters.OUTPUTS_THROUGHPUT_SIM)
         if self.sim and parameters.save_residuals:
             plt.savefig(
                 parameters.OUTPUTS_THROUGHPUT_SIM + 'throughput_sim, ' + self.disperseur + ',résidus, version_' + parameters.PROD_NUM + '.pdf')
@@ -557,12 +563,9 @@ class SpectrumRangeAirmass:
         plt.errorbar(NUM, OZONE, xerr=None, yerr=ERR_OZONE, fmt='none', capsize=1,
                      ecolor='blue', zorder=2, elinewidth=2)
         fig.tight_layout()
-
-        if os.path.exists(chemin):
-            plt.savefig(chemin + 'Ozone_fit, ' + self.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
-        else:
+        if os.path.exists(chemin) == False:
             os.makedirs(chemin)
-            plt.savefig(chemin + 'Ozone_fit, ' + self.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
+        plt.savefig(chemin + 'Ozone_fit, ' + self.disperseur + ', version_' + parameters.PROD_NUM + '.pdf')
 
         fig = plt.figure(figsize=[10, 10])
         ax2 = fig.add_subplot(111)

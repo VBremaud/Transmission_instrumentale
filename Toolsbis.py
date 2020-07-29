@@ -1,6 +1,6 @@
 # coding: utf8
 
-from spectractor.extractor.spectrum import Spectrum  # importation des spectres
+from spectractor.extractor.spectrum import Spectrum
 import spectractor.parameters as parameterss
 from spectractor.simulation.adr import adr_calib
 from TransmissionInstrumentalebis import *
