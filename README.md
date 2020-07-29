@@ -14,14 +14,14 @@ sps/ (vide)
 
 prod/
 
-    data_txt/ (vide)
+  data_txt/ (vide)
     
-    data/(lien symbolique vers CTIO...)
+  data/(lien symbolique vers CTIO...)
     
 throughput/
 
 tests/
 
-____data/ 
+   data/ 
 
-________reduc_20170530_060_atmsim.fits
+       reduc_20170530_060_atmsim.fits
