@@ -109,7 +109,7 @@ class SpectrumRangeAirmass:
                     outliers = np.argmax(np.abs(self.data[bin] - np.mean(self.data[bin])))
                     print("----> outliers detected:" + self.names[outliers].split('/')[
                         -1] + "\t" + ", multiplicative factor compared to avg value: " + str(
-                        self.data[bin] / np.mean(self.data[bin])[:3]) +
+                        self.data[bin][outliers] / np.mean(self.data[bin])) +
                           " for " + str(self.Bin[bin]) + "-" + str(self.Bin[bin + 1]) + " nm \n")
                     s = SpectrumAirmassFixed(file_name=self.names[outliers])
                     pl = input("Do you want check this spectra (y/n)? ")
