@@ -378,9 +378,9 @@ class SpectrumRangeAirmass:
         im = plt.imshow(rho[vert[:, None], hor], interpolation="nearest", cmap='bwr',
                         vmin=-5, vmax=5)
         if self.sim:
-            ax.set_title(self.disperseur + parameters.PROD_NUM, fontsize=21)
+            ax.set_title(self.disperseur +' '+ parameters.PROD_NUM, fontsize=21)
         else:
-            ax.set_title(self.disperseur + parameters.PROD_NUM, fontsize=21)
+            ax.set_title(self.disperseur +' '+ parameters.PROD_NUM, fontsize=21)
         print(np.mean(rho))
         print(np.std(rho))
         names_vert = [axis_names_vert[ip] for ip in vert]
