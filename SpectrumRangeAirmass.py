@@ -109,7 +109,7 @@ class SpectrumRangeAirmass:
                     outliers = np.argmax(np.abs(self.data[bin] - np.mean(self.data[bin])))
                     print("----> outliers detected:" + self.names[outliers].split('/')[
                         -1] + "\t" + ", multiplicative factor compared to avg value: " + str(
-                        self.data[bin] / np.mean(self.data[bin])[:3]) +
+                        self.data[bin][outliers] / np.mean(self.data[bin])) +
                           " for " + str(self.Bin[bin]) + "-" + str(self.Bin[bin + 1]) + " nm \n")
                     s = SpectrumAirmassFixed(file_name=self.names[outliers])
                     pl = input("Do you want check this spectra (y/n)? ")
@@ -378,9 +378,9 @@ class SpectrumRangeAirmass:
         im = plt.imshow(rho[vert[:, None], hor], interpolation="nearest", cmap='bwr',
                         vmin=-5, vmax=5)
         if self.sim:
-            ax.set_title(self.disperseur + parameters.PROD_NUM, fontsize=21)
+            ax.set_title(self.disperseur +' '+ parameters.PROD_NUM, fontsize=21)
         else:
-            ax.set_title(self.disperseur + parameters.PROD_NUM, fontsize=21)
+            ax.set_title(self.disperseur +' '+ parameters.PROD_NUM, fontsize=21)
         print(np.mean(rho))
         print(np.std(rho))
         names_vert = [axis_names_vert[ip] for ip in vert]

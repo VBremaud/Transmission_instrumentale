@@ -24,8 +24,8 @@ DISP = 'Thor300'
 
 ###________INPUT WITH A NEW PROD________###
 
-PROD_NUM = "6.9"
-PROD = "CTIODataJune2017_reduced_RG715_v2_prod"+PROD_NUM+"/data_30may17_A2=0.1"
+PROD_NUM = "6.10"
+PROD = "CTIODataJune2017_reduced_RG715_v2_prod"+PROD_NUM+"/data_30may17_A2=1"
 
 ###________CTIO_THROUGHPUT________###
 THROUGHPUT_SIM = "ctio_throughput_baseThor300_prod6.9.txt" #used on simulations
@@ -51,14 +51,14 @@ DISPERSER_EXTRACTION = DISP+"_basectio"+DISPERSER_REF+", version_"+PROD_NUM+".tx
 DISPERSER_BANC = DISP+"_banc.txt"
 
 ###________LAMBDA SCALE________###
-LAMBDA_MIN = 370
+LAMBDA_MIN = 380
 LAMBDA_MAX = 980
 BINWIDTHS = 5
 BIN = np.arange(LAMBDA_MIN, LAMBDA_MAX + BINWIDTHS, BINWIDTHS)
 NEW_LAMBDA= 0.5 * (BIN[1:] + BIN[:-1])
 
 ###________CHECK OUTLIERS________###
-MULT_MAX = 5
+MULT_MAX = 10**15
 
 ###________PLOTS________###
 plot_atmo = True

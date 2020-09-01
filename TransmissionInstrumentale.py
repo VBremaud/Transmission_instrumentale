@@ -28,6 +28,8 @@ class TransmissionInstrumentale:
         self.err_ord2 = []
         self.err_order2 = []
         self.file_calspec = glob.glob(parameters.PROD_TXT + "/sim*spectrum.txt")[0]
+        self.params_atmo = None
+        self.err_params_atmo = None
         if self.sim:
             self.rep_tel_name = os.path.join(parameters.THROUGHPUT_DIR, parameters.THROUGHPUT_SIM)
         else:
@@ -102,6 +104,8 @@ class TransmissionInstrumentale:
         self.data_tel = Data_tel(self.lambdas)
         self.data_tel_err = Err_tel(self.lambdas)
 
+        self.params_atmo = spectrumrangeairmass.params_atmo
+        self.err_params_atmo = spectrumrangeairmass.err_params_atmo
         if parameters.plot_fitspectrum:
             spectrumrangeairmass.fit_spectrum()
 
