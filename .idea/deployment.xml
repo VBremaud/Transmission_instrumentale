@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="sshConfig://jneveu@cca.in2p3.fr:22 password/pbs/home/j/jneveu/anaconda3/bin/python" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" serverName="sshConfig://jneveu@cca.in2p3.fr:22 password/pbs/home/j/jneveu/anaconda3/bin/python" autoUploadExternalChanges="true">
     <serverData>
       <paths name="sshConfig://jneveu@cca.in2p3.fr:22 password/pbs/home/j/jneveu/anaconda3/bin/python">
         <serverdata>
           <mappings>
-            <mapping deploy="/pbs/home/j/jneveu/LSST/Transmission_instrumentale" local="$PROJECT_DIR$" />
+            <mapping deploy="/pbs/home/j/jneveu/LSST/Transmission_instrumentale" local="$PROJECT_DIR$/../Transmission_instrumentale" />
           </mappings>
         </serverdata>
       </paths>
     </serverData>
-    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
