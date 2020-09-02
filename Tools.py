@@ -5,6 +5,7 @@ import spectractor.parameters as parameterss
 from spectractor.simulation.adr import adr_calib
 from TransmissionInstrumentale import *
 
+
 def convert_from_fits_to_txt():
     prod_name = parameters.PROD_NAME
     prod_txt = parameters.PROD_TXT
@@ -92,17 +93,17 @@ def convert_from_fits_to_txt():
 
                 fichier.close()
 
-                np.save(os.path.join(prod_txt, tag.replace('fits', 'npy')),cov)
+                np.save(os.path.join(prod_txt, tag.replace('fits', 'npy')), cov)
         return False, Lsimutxt, Lreductxt
     else:
         print('already done')
         return True, Lsimutxt, Lreductxt
 
 
-def extract_throughput():
+def extract_throughput(subtract_order2=False):
     CFT = convert_from_fits_to_txt()
     if CFT[0]:
-        spectrumrangeairmass = SpectrumRangeAirmass()
+        spectrumrangeairmass = SpectrumRangeAirmass(subtract_order2=subtract_order2)
         Throughput = TransmissionInstrumentale()
         Throughput.calcul_throughput(spectrumrangeairmass)
 
@@ -118,18 +119,19 @@ def extract_throughput():
     else:
         print('relaunch, convert_fits_to_txt step')
 
-def prod_analyse(data = 'all'):
+
+def prod_analyse(data='all', subtract_order2=False):
     CFT = convert_from_fits_to_txt()
     if CFT[0]:
         if data == 'all' or data == 'sim':
             for disperser in parameters.DISPERSER:
                 parameters.DISP = disperser
                 parameters.SIM = True
-                extract_throughput()
+                extract_throughput(subtract_order2=subtract_order2)
         if data == 'all' or data == 'reduc':
             for disperser in parameters.DISPERSER:
                 parameters.DISP = disperser
                 parameters.SIM = False
-                extract_throughput()
+                extract_throughput(subtract_order2=subtract_order2)
     else:
         print('relaunch, convert_fits_to_txt step')

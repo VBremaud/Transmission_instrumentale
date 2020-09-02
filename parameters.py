@@ -29,7 +29,7 @@ PROD = "CTIODataJune2017_reduced_RG715_v2_prod"+PROD_NUM+"/data_30may17_A2=1"
 
 ###________CTIO_THROUGHPUT________###
 THROUGHPUT_SIM = "ctio_throughput_baseThor300_prod6.9.txt" #used on simulations
-THROUGHPUT_REDUC = "ctio_throughput_baseThor300_prod6.9.txt" #for comparison or throughput disperser extraction
+THROUGHPUT_REDUC = "ctio_throughput_baseTqhor300_prod6.9.txt" #for comparison or throughput disperser extraction
 
 """
 List of CTIO_THROUGHPUT:

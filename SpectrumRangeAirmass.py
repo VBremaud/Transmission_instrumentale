@@ -13,7 +13,7 @@ from scipy import integrate
 
 class SpectrumRangeAirmass:
 
-    def __init__(self):
+    def __init__(self, subtract_order2=False):
 
         self.target = parameters.target
         self.disperseur = parameters.DISP
@@ -38,10 +38,12 @@ class SpectrumRangeAirmass:
         self.err_params_atmo = np.zeros(3)
         self.prod_sim = glob.glob(parameters.PROD_TXT + "/sim*spectrum.txt")
         self.prod_reduc = glob.glob(parameters.PROD_TXT + "/reduc*spectrum.txt")
-        if self.sim:
-            self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_ORDER2_SIM)
-        else:
-            self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_ORDER2)
+        self.file_tdisp_order2 = None
+        if subtract_order2:
+            if self.sim:
+                self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_ORDER2_SIM)
+            else:
+                self.file_tdisp_order2 = os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_ORDER2)
         self.init_spectrumrangeairmass()
         self.data_range_airmass()
         self.check_outliers()
@@ -60,9 +62,10 @@ class SpectrumRangeAirmass:
             self.order2.append([])
 
     def data_range_airmass(self):
-        t_disp = np.loadtxt(self.file_tdisp_order2)
-        T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
-                                               fill_value="extrapolate")
+        if self.file_tdisp_order2 is not None:
+            t_disp = np.loadtxt(self.file_tdisp_order2)
+            T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
+                                                    fill_value="extrapolate")
 
         for i in range(len(self.list_spectrum)):
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
@@ -81,10 +84,13 @@ class SpectrumRangeAirmass:
                     lambdas_conv = interp1d(s.lambdas, s.lambdas_order2, kind="linear",
                                             bounds_error=False, fill_value=(0, 0))
                     LAMBDAS_ORDER2 = lambdas_conv(self.new_lambda)
-                    I_order2 = data_conv(LAMBDAS_ORDER2) * T_disperseur(LAMBDAS_ORDER2)
+                    if self.file_tdisp_order2 is not None:
+                        I_order2 = data_conv(LAMBDAS_ORDER2) * T_disperseur(LAMBDAS_ORDER2)
 
-                    self.order2[v].append(I_order2[v] * LAMBDAS_ORDER2[v] * np.gradient(LAMBDAS_ORDER2)[v]
+                        self.order2[v].append(I_order2[v] * LAMBDAS_ORDER2[v] * np.gradient(LAMBDAS_ORDER2)[v]
                                           / np.gradient(self.new_lambda)[v] / self.new_lambda[v])
+                    else:
+                        self.order2[v].append(np.zeros_like(LAMBDAS_ORDER2))
 
                 self.cov.append(cov_bin)
                 self.names.append(self.list_spectrum[i])
