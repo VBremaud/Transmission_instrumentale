@@ -25,11 +25,11 @@ DISP = 'Thor300'
 ###________INPUT WITH A NEW PROD________###
 
 PROD_NUM = "6.10"
-PROD = "CTIODataJune2017_reduced_RG715_v2_prod"+PROD_NUM+"/data_30may17_A2=1"
+PROD = "CTIODataJune2017_reduced_RG715_v2_prod" + PROD_NUM + "/data_30may17_A2=1"
 
 ###________CTIO_THROUGHPUT________###
-THROUGHPUT_SIM = "ctio_throughput_baseThor300_prod6.9.txt" #used on simulations
-THROUGHPUT_REDUC = "ctio_throughput_baseTqhor300_prod6.9.txt" #for comparison or throughput disperser extraction
+THROUGHPUT_SIM = "ctio_throughput_baseThor300_prod6.9.txt"  # used on simulations
+THROUGHPUT_REDUC = "ctio_throughput_baseThor300_prod6.9.txt"  # for comparison or throughput disperser extraction
 
 """
 List of CTIO_THROUGHPUT:
@@ -43,22 +43,22 @@ DISPERSER = ['Ron400', 'Thor300', 'HoloPhP', 'HoloPhAg', 'HoloAmAg']
 DISPERSER_REF = 'Thor300'
 
 ###_________DISPERSER FILES_________###
-DISPERSER_ORDER2_SIM = DISP+"_order2_sim.txt"
-DISPERSER_ORDER2 = DISP+"_order2.txt"
-DISPERSER_REF_BANC = DISPERSER_REF+"_banc.txt"
-DISPERSER_REF_SIM = DISP+"_sim.txt"
-DISPERSER_EXTRACTION = DISP+"_basectio"+DISPERSER_REF+", version_"+PROD_NUM+".txt"
-DISPERSER_BANC = DISP+"_banc.txt"
+DISPERSER_ORDER2_SIM = DISP + "_order2_sim.txt"
+DISPERSER_ORDER2 = DISP + "_order2.txt"
+DISPERSER_REF_BANC = DISPERSER_REF + "_banc.txt"
+DISPERSER_REF_SIM = DISP + "_banc.txt"
+DISPERSER_EXTRACTION = DISP + "_basectio" + DISPERSER_REF + ", version_" + PROD_NUM + ".txt"
+DISPERSER_BANC = DISP + "_banc.txt"
 
 ###________LAMBDA SCALE________###
 LAMBDA_MIN = 380
 LAMBDA_MAX = 980
 BINWIDTHS = 5
 BIN = np.arange(LAMBDA_MIN, LAMBDA_MAX + BINWIDTHS, BINWIDTHS)
-NEW_LAMBDA= 0.5 * (BIN[1:] + BIN[:-1])
+NEW_LAMBDA = 0.5 * (BIN[1:] + BIN[:-1])
 
 ###________CHECK OUTLIERS________###
-MULT_MAX = 10**15
+MULT_MAX = 10 ** 15
 
 ###________PLOTS________###
 plot_atmo = True
@@ -82,7 +82,6 @@ REMOVE_SPECTRA = [58]
 COMPARISON_MD_SPECTRA = []
 COMPARISON_BANC = True
 
-
 ###_____________DO NOT CHANGE_____________###
 
 
@@ -90,8 +89,8 @@ COMPARISON_BANC = True
 
 mypath = os.path.dirname(__file__)
 PROD_DIRECTORY = os.path.join(mypath, "prod/")
-PROD_TXT = os.path.join(PROD_DIRECTORY, "data_txt/"+PROD)
-PROD_NAME = os.path.join(PROD_DIRECTORY, "data/"+PROD)
+PROD_TXT = os.path.join(PROD_DIRECTORY, "data_txt/" + PROD)
+PROD_NAME = os.path.join(PROD_DIRECTORY, "data/" + PROD)
 
 ###________DIRECTORY THROUGHPUT________###
 
@@ -113,6 +112,3 @@ OUTPUTS_FITSPECTRUM_REDUC = os.path.join(OUTPUTS_REDUC, "fitspectrum/")
 
 OUTPUTS_THROUGHPUT_SIM = os.path.join(OUTPUTS_SIMU, "throughput/")
 OUTPUTS_THROUGHPUT_REDUC = os.path.join(OUTPUTS_REDUC, "throughput/")
-
-
-

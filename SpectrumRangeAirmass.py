@@ -11,6 +11,7 @@ from numpy.linalg import inv
 import matplotlib.colors
 from scipy import integrate
 
+
 class SpectrumRangeAirmass:
 
     def __init__(self, subtract_order2=False):
@@ -38,6 +39,7 @@ class SpectrumRangeAirmass:
         self.err_params_atmo = np.zeros(3)
         self.prod_sim = glob.glob(parameters.PROD_TXT + "/sim*spectrum.txt")
         self.prod_reduc = glob.glob(parameters.PROD_TXT + "/reduc*spectrum.txt")
+        self.subtract_order2 = subtract_order2
         self.file_tdisp_order2 = None
         if subtract_order2:
             if self.sim:
@@ -62,10 +64,10 @@ class SpectrumRangeAirmass:
             self.order2.append([])
 
     def data_range_airmass(self):
-        if self.file_tdisp_order2 is not None:
+        if self.subtract_order2:
             t_disp = np.loadtxt(self.file_tdisp_order2)
             T_disperseur = sp.interpolate.interp1d(t_disp.T[0], t_disp.T[1], kind="linear", bounds_error=False,
-                                                    fill_value="extrapolate")
+                                                   fill_value="extrapolate")
 
         for i in range(len(self.list_spectrum)):
             s = SpectrumAirmassFixed(file_name=self.list_spectrum[i])
@@ -79,18 +81,18 @@ class SpectrumRangeAirmass:
                     self.range_airmass[v].append(s.airmass)
                     self.err_mag[v].append(err[v])
 
-                    data_conv = interp1d(self.new_lambda, data, kind="linear",
-                                         bounds_error=False, fill_value=(0, 0))
-                    lambdas_conv = interp1d(s.lambdas, s.lambdas_order2, kind="linear",
-                                            bounds_error=False, fill_value=(0, 0))
-                    LAMBDAS_ORDER2 = lambdas_conv(self.new_lambda)
-                    if self.file_tdisp_order2 is not None:
+                    if self.subtract_order2:
+                        data_conv = interp1d(self.new_lambda, data, kind="linear",
+                                             bounds_error=False, fill_value=(0, 0))
+                        lambdas_conv = interp1d(s.lambdas, s.lambdas_order2, kind="linear",
+                                                bounds_error=False, fill_value=(0, 0))
+                        LAMBDAS_ORDER2 = lambdas_conv(self.new_lambda)
                         I_order2 = data_conv(LAMBDAS_ORDER2) * T_disperseur(LAMBDAS_ORDER2)
 
                         self.order2[v].append(I_order2[v] * LAMBDAS_ORDER2[v] * np.gradient(LAMBDAS_ORDER2)[v]
-                                          / np.gradient(self.new_lambda)[v] / self.new_lambda[v])
+                                              / np.gradient(self.new_lambda)[v] / self.new_lambda[v])
                     else:
-                        self.order2[v].append(np.zeros_like(LAMBDAS_ORDER2))
+                        self.order2[v].append(0)
 
                 self.cov.append(cov_bin)
                 self.names.append(self.list_spectrum[i])
@@ -111,7 +113,8 @@ class SpectrumRangeAirmass:
         outliers_detected = True
         while outliers_detected:
             for bin in range(len(self.Bin) - 1):
-                if np.max(self.data[bin] / np.mean(self.data[bin])) > parameters.MULT_MAX or np.min(self.data[bin] / np.mean(self.data[bin])) < 1/parameters.MULT_MAX:
+                if np.max(self.data[bin] / np.mean(self.data[bin])) > parameters.MULT_MAX or np.min(
+                        self.data[bin] / np.mean(self.data[bin])) < 1 / parameters.MULT_MAX:
                     outliers = np.argmax(np.abs(self.data[bin] - np.mean(self.data[bin])))
                     print("----> outliers detected:" + self.names[outliers].split('/')[
                         -1] + "\t" + ", multiplicative factor compared to avg value: " + str(
@@ -130,8 +133,8 @@ class SpectrumRangeAirmass:
             if len(indice) == 0:
                 outliers_detected = False
                 test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
-                i=0
-                while i<len(self.names):
+                i = 0
+                while i < len(self.names):
                     if test[i] in parameters.REMOVE_SPECTRA:
                         self.names = np.delete(self.names, i)
                         self.cov = np.delete(self.cov, i, 0)
@@ -142,7 +145,7 @@ class SpectrumRangeAirmass:
                         self.PSF_REG = np.delete(self.PSF_REG, i)
                         test = [int(self.names[i][-16:-13]) for i in range(len(self.names))]
                     else:
-                        i+=1
+                        i += 1
             else:
                 outliers_detected = True
                 self.names = np.delete(self.names, indice[0])
@@ -162,9 +165,11 @@ class SpectrumRangeAirmass:
         "Remove star for HoloAmAg"
         if self.disperseur == 'HoloAmAg' and self.sim == False:
             for j in range(len(self.names)):
-                a, b = np.argmin(abs(self.new_lambda-537.5)), np.argmin(abs(self.new_lambda-542.5))
-                self.INVCOV[j][a,:], self.INVCOV[j][:,a] = self.INVCOV[j][a,:] / 10000000000, self.INVCOV[j][:,a] / 10000000000
-                self.INVCOV[j][b, :], self.INVCOV[j][:, b] = self.INVCOV[j][b, :] / 10000000000, self.INVCOV[j][:, b] / 10000000000
+                a, b = np.argmin(abs(self.new_lambda - 537.5)), np.argmin(abs(self.new_lambda - 542.5))
+                self.INVCOV[j][a, :], self.INVCOV[j][:, a] = self.INVCOV[j][a, :] / 10000000000, self.INVCOV[j][:,
+                                                                                                 a] / 10000000000
+                self.INVCOV[j][b, :], self.INVCOV[j][:, b] = self.INVCOV[j][b, :] / 10000000000, self.INVCOV[j][:,
+                                                                                                 b] / 10000000000
 
     def megafit_emcee(self):
         nsamples = 300
@@ -193,13 +198,13 @@ class SpectrumRangeAirmass:
             M_p = np.zeros((nb_spectre * nb_bin, nb_bin))
             for j in range(nb_spectre):
                 Atmo = np.zeros(len(self.new_lambda))
-                Lambdas = np.arange(self.Bin[0],self.Bin[-1],0.2)
+                Lambdas = np.arange(self.Bin[0], self.Bin[-1], 0.2)
                 Atm = atm[j].simulate(ozone, eau, aerosols)(Lambdas)
                 for i in range(len(self.new_lambda)):
-                    Atmo[i] = np.mean(Atm[i*int(self.binwidths/0.2):(i+1)*int(self.binwidths/0.2)])
+                    Atmo[i] = np.mean(Atm[i * int(self.binwidths / 0.2):(i + 1) * int(self.binwidths / 0.2)])
                 a = np.diagflat(Atmo)
                 M[j, :, :] = a
-                M_p[nb_bin * j:nb_bin * (j+1),:] = a
+                M_p[nb_bin * j:nb_bin * (j + 1), :] = a
             return M, M_p
 
         def log_likelihood(params_fit, atm):
@@ -210,13 +215,13 @@ class SpectrumRangeAirmass:
             M, M_p = Atm(atm, ozone, eau, aerosols)
             prod = np.zeros((nb_bin, nb_spectre * nb_bin))
             for spec in range(nb_spectre):
-                prod[:,spec * nb_bin : (spec+1) * nb_bin] = M[spec] @ self.INVCOV[spec]
+                prod[:, spec * nb_bin: (spec + 1) * nb_bin] = M[spec] @ self.INVCOV[spec]
             COV = inv(prod @ M_p)
             A = COV @ prod @ D
 
             chi2 = 0
             for spec in range(nb_spectre):
-                mat = D[spec * nb_bin : (spec+1) * nb_bin] - M[spec] @ A
+                mat = D[spec * nb_bin: (spec + 1) * nb_bin] - M[spec] @ A
                 chi2 += mat @ self.INVCOV[spec] @ mat
 
             n = np.random.randint(0, 100)
@@ -239,7 +244,7 @@ class SpectrumRangeAirmass:
             return lp + log_likelihood(params_fit, atm)
 
         if self.sim:
-            filename = "sps/" + self.disperseur + "_"+ "sim_"+ parameters.PROD_NUM + "_emcee.h5"
+            filename = "sps/" + self.disperseur + "_" + "sim_" + parameters.PROD_NUM + "_emcee.h5"
         else:
             filename = "sps/" + self.disperseur + "_" + "reduc_" + parameters.PROD_NUM + "_emcee.h5"
 
@@ -301,11 +306,11 @@ class SpectrumRangeAirmass:
         COV = inv(prod @ M_p)
         D = matrice_data()
         Tinst = COV @ prod @ D
-        Tinst_err = np.array([np.sqrt(COV[i,i]) for i in range(len(Tinst))])
+        Tinst_err = np.array([np.sqrt(COV[i, i]) for i in range(len(Tinst))])
 
         if self.disperseur == 'HoloAmAg' and self.sim == False:
             a, b = np.argmin(abs(self.new_lambda - 537.5)), np.argmin(abs(self.new_lambda - 542.5))
-            Tinst_err[a], Tinst_err[b] = Tinst_err[a-1], Tinst_err[b+1]
+            Tinst_err[a], Tinst_err[b] = Tinst_err[a - 1], Tinst_err[b + 1]
 
         for spec in range(nb_spectre):
             mat = D[spec * nb_bin: (spec + 1) * nb_bin] - M[spec] @ Tinst
@@ -384,9 +389,9 @@ class SpectrumRangeAirmass:
         im = plt.imshow(rho[vert[:, None], hor], interpolation="nearest", cmap='bwr',
                         vmin=-5, vmax=5)
         if self.sim:
-            ax.set_title(self.disperseur +' '+ parameters.PROD_NUM, fontsize=21)
+            ax.set_title(self.disperseur + ' ' + parameters.PROD_NUM, fontsize=21)
         else:
-            ax.set_title(self.disperseur +' '+ parameters.PROD_NUM, fontsize=21)
+            ax.set_title(self.disperseur + ' ' + parameters.PROD_NUM, fontsize=21)
         print(np.mean(rho))
         print(np.std(rho))
         names_vert = [axis_names_vert[ip] for ip in vert]
@@ -400,7 +405,8 @@ class SpectrumRangeAirmass:
         cbar.ax.tick_params(labelsize=13)
         plt.gcf().tight_layout()
         fig.tight_layout()
-        if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM) == False or os.path.exists(parameters.OUTPUTS_THROUGHPUT_REDUC) == False:
+        if os.path.exists(parameters.OUTPUTS_THROUGHPUT_SIM) == False or os.path.exists(
+                parameters.OUTPUTS_THROUGHPUT_REDUC) == False:
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_REDUC)
             os.makedirs(parameters.OUTPUTS_THROUGHPUT_SIM)
         if self.sim and parameters.save_residuals:
@@ -415,9 +421,11 @@ class SpectrumRangeAirmass:
             k = np.argmin(abs(np.array(test) - Kplot[i]))
             fig = plt.figure(figsize=[15, 15])
             ax = fig.add_subplot(111)
-            plt.plot(self.new_lambda, model[k * len(self.new_lambda) : (k+1) * len(self.new_lambda)], c='red', label='model')
-            plt.plot(self.new_lambda, D[k * len(self.new_lambda) : (k+1) * len(self.new_lambda)], c='blue', label='data')
-            plt.title("spectrum :"+str(Kplot[i]))
+            plt.plot(self.new_lambda, model[k * len(self.new_lambda): (k + 1) * len(self.new_lambda)], c='red',
+                     label='model')
+            plt.plot(self.new_lambda, D[k * len(self.new_lambda): (k + 1) * len(self.new_lambda)], c='blue',
+                     label='data')
+            plt.title("spectrum :" + str(Kplot[i]))
             plt.grid(True)
             plt.legend()
         plt.show()
@@ -455,12 +463,12 @@ class SpectrumRangeAirmass:
             if self.disperseur != parameters.DISPERSER_REF:
                 disp = np.loadtxt(parameters.DISPERSER_EXTRACTION)
             else:
-                disp = np.loadtxt(parameters.DISPERSER_REF_BANC)
-            Tctio = np.loadtxt(parameters.THROUGHPUT_REDUC)
+                disp = np.loadtxt(os.path.join(parameters.THROUGHPUT_DIR, parameters.DISPERSER_REF_BANC))
+            Tctio = np.loadtxt(os.path.join(parameters.THROUGHPUT_DIR, parameters.THROUGHPUT_REDUC))
             Tctio_data = sp.interpolate.interp1d(Tctio.T[0], Tctio.T[1], bounds_error=False,
                                                  fill_value="extrapolate")(self.new_lambda)
             disp_data = sp.interpolate.interp1d(disp.T[0], disp.T[1], bounds_error=False,
-                                                    fill_value="extrapolate")(self.new_lambda)
+                                                fill_value="extrapolate")(self.new_lambda)
             return data_calspec * Tctio_data * disp_data
 
         OZONE = np.zeros(len(self.names))
@@ -472,11 +480,13 @@ class SpectrumRangeAirmass:
 
         for spec in range(len(self.names)):
             atm = AtmosphereGrid(
-                filename=(os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME) + '/' + self.names[spec].split('/')[-1]).replace('sim', 'reduc').replace(
+                filename=(os.path.join(parameters.PROD_DIRECTORY, parameters.PROD_NAME) + '/' +
+                          self.names[spec].split('/')[-1]).replace('sim', 'reduc').replace(
                     'spectrum.txt', 'atmsim.fits'))
 
             self.atm = atm
             ORDO = Ordonnee()
+
             def Atm(atm, ozone, eau, aerosols):
                 nb_bin = len(self.data)
                 Atmo = np.zeros(nb_bin)
@@ -490,8 +500,8 @@ class SpectrumRangeAirmass:
             def log_likelihood(params_fit):
                 nb_bin = len(self.data)
                 ozone, eau, aerosols = params_fit[-3], params_fit[-2], params_fit[-1]
-                M = Atm(self.atm,ozone, eau, aerosols)
-                D = self.data[:,spec] - self.order2[:,spec]
+                M = Atm(self.atm, ozone, eau, aerosols)
+                D = self.data[:, spec] - self.order2[:, spec]
                 mat = D - M @ ORDO
 
                 chi2 = mat @ self.INVCOV[spec] @ mat
